@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>A 店家｜線上菜單</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="shop-header">
+    <div class="shop-cover" aria-hidden="true">🍱</div>
+    <div>
+      <p class="eyebrow">線上點餐</p>
+      <h1>A 店家</h1>
+      <p class="shop-description">提供簡單美味的校園餐點，歡迎選購。</p>
+      <p class="shop-hours">營業時間：週一至週五 10:00–14:00</p>
+    </div>
+  </header>
+
+  <main class="page-content">
+    <section class="notice">
+      <strong>店家公告</strong>
+      <p>這裡可以放今日公告、售完通知或取餐提醒。</p>
+    </section>
+
+    <nav class="category-nav" aria-label="菜單分類">
+      <a class="active" href="#all">全部餐點</a>
+      <a href="#main-meals">主食</a>
+      <a href="#drinks">飲料</a>
+    </nav>
+
+    <section id="all" class="menu-section">
+      <div class="section-heading"><h2>全部餐點</h2><span>共 4 項</span></div>
+      <div class="menu-list">
+        <article class="menu-item" id="main-meals">
+          <div class="food-image food-one" role="img" aria-label="雞腿便當示意圖">🍱</div>
+          <div class="food-details">
+            <div class="food-title-row"><h3>香煎雞腿便當</h3><span class="food-price">$100</span></div>
+            <p>香煎雞腿搭配每日新鮮配菜。</p>
+            <div class="food-bottom"><span class="food-tag">人氣餐點</span><button type="button" class="add-button" aria-label="香煎雞腿便當，加入購物車">＋</button></div>
+          </div>
+        </article>
+        <article class="menu-item">
+          <div class="food-image food-two" role="img" aria-label="滷肉飯示意圖">🍚</div>
+          <div class="food-details">
+            <div class="food-title-row"><h3>香噴噴滷肉飯</h3><span class="food-price">$60</span></div>
+            <p>鹹香滷肉淋在熱騰騰的白飯上。</p>
+            <div class="food-bottom"><span class="food-tag">經典主食</span><button type="button" class="add-button" aria-label="香噴噴滷肉飯，加入購物車">＋</button></div>
+          </div>
+        </article>
+        <article class="menu-item">
+          <div class="food-image food-three" role="img" aria-label="炸雞排示意圖">🍗</div>
+          <div class="food-details">
+            <div class="food-title-row"><h3>酥脆炸雞排</h3><span class="food-price">$75</span></div>
+            <p>外酥內嫩，適合當作點心或加菜。</p>
+            <div class="food-bottom"><span class="food-tag">人氣點心</span><button type="button" class="add-button" aria-label="酥脆炸雞排，加入購物車">＋</button></div>
+          </div>
+        </article>
+        <article class="menu-item" id="drinks">
+          <div class="food-image food-four" role="img" aria-label="珍珠奶茶示意圖">🧋</div>
+          <div class="food-details">
+            <div class="food-title-row"><h3>珍珠奶茶</h3><span class="food-price">$50</span></div>
+            <p>香濃奶茶搭配 Q 彈珍珠。</p>
+            <div class="food-bottom"><span class="food-tag">飲料</span><button type="button" class="add-button" aria-label="珍珠奶茶，加入購物車">＋</button></div>
+          </div>
+        </article>
+      </div>
+    </section>
+    <p class="demo-note">目前為靜態展示頁面，餐點、價格及按鈕都是範例，尚未連接後端 API。</p>
+  </main>
+  <footer class="site-footer">校園小吃線上點餐系統｜課堂專題展示</footer>
+</body>
+</html>
