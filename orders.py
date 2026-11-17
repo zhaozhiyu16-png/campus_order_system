@@ -68,3 +68,26 @@ def create_order(order: OrderRequest):
             "items_count": len(order.items)
         }
     }
+    # --- GET 路由：依學號查詢個人訂單與製作狀態 ---
+@router.get("")
+def get_student_orders(student_id: str):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 查詢該學號的所有訂單，依建立時間排序
+    cursor.execute(
+        "SELECT id, student_id, pickup_date, est_pickup_time, payment_method, status, created_at "
+        "FROM orders WHERE student_id = ? ORDER BY created_at DESC",
+        (student_id,)
+    )
+    orders = cursor.fetchall()
+    conn.close()
+    
+    if not orders:
+        return {"message": "查無訂單紀錄", "orders": []}
+    
+    # 將查詢結果轉成字典列表回傳
+    return {
+        "student_id": student_id,
+        "orders": [dict(row) for row in orders]
+    }
