@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>校園小吃線上點餐系統｜購物車與結帳</title>
+
+  <!-- 如果你的專案有下載 Bootstrap，請確認這個相對路徑正確 -->
+  <link rel="stylesheet" href="../assets/vendor/bootstrap.min.css">
+
+  <style>
+    :root {
+      --brand: #28745b;
+      --brand-dark: #1d5945;
+      --page-bg: #f5f7f5;
+      --soft-green: #eaf3ee;
+    }
+
+    body {
+      background: var(--page-bg);
+      color: #29332e;
+      font-family: "Microsoft JhengHei", system-ui, sans-serif;
+    }
+
+    .navbar-brand {
+      color: var(--brand) !important;
+      font-weight: 800;
+      letter-spacing: .04em;
+    }
+
+    .page-title {
+      font-weight: 800;
+      letter-spacing: .02em;
+    }
+
+    .section-card {
+      border: 0;
+      border-radius: 18px;
+      box-shadow: 0 5px 22px rgba(31, 65, 48, .06);
+    }
+
+    .food-thumb {
+      width: 76px;
+      height: 76px;
+      object-fit: cover;
+      border-radius: 13px;
+      background: #e8eee9;
+    }
+
+    .quantity-control {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid #dce5df;
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: #fff;
+    }
+
+    .quantity-control button {
+      border: 0;
+      background: var(--soft-green);
+      color: var(--brand-dark);
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .quantity-control button:hover {
+      background: #d8e9de;
+    }
+
+    .form-control, .form-select {
+      border-color: #dce5df;
+      border-radius: 10px;
+      padding: .7rem .85rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: #78a891;
+      box-shadow: 0 0 0 .2rem rgba(40, 116, 91, .12);
+    }
+
+    .btn-brand {
+      background: var(--brand);
+      color: #fff;
+      border: 0;
+      border-radius: 11px;
+      padding: .8rem 1.2rem;
+      font-weight: 700;
+    }
+
+    .btn-brand:hover {
+      background: var(--brand-dark);
+      color: #fff;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .total-price {
+      color: var(--brand-dark);
+      font-size: 1.55rem;
+      font-weight: 800;
+    }
+
+    .required-mark {
+      color: #c0392b;
+    }
+
+    .empty-cart {
+      padding: 42px 16px;
+      text-align: center;
+      color: #718078;
+    }
+
+    @media (max-width: 575.98px) {
+      .food-thumb {
+        width: 62px;
+        height: 62px;
+      }
+      .cart-item {
+        align-items: flex-start !important;
+      }
+      .item-bottom {
+        margin-top: 12px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="navbar bg-white border-bottom">
+    <div class="container">
+      <a class="navbar-brand" href="#">校園小吃線上點餐</a>
+      <span class="small text-secondary">學生訂餐專區</span>
+    </div>
+  </nav>
+
+  <main class="container py-4 py-lg-5">
+    <div class="mb-4">
+      <p class="text-success fw-semibold mb-1">ORDER & CHECKOUT</p>
+      <h1 class="page-title h2 mb-2">購物車與結帳</h1>
+      <p class="text-secondary mb-0">確認餐點內容，填寫取餐資料後即可送出訂單。</p>
+    </div>
+
+    <div class="row g-4">
+      <!-- 購物車 -->
+      <section class="col-lg-7" aria-labelledby="cart-title">
+        <div class="card section-card">
+          <div class="card-body p-3 p-md-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h2 id="cart-title" class="h5 fw-bold mb-0">購物車內容</h2>
+              <span class="badge rounded-pill text-bg-success" id="item-count">2 項商品</span>
+            </div>
+
+            <div id="cart-list">
+              <!-- 範例商品由 JavaScript 顯示 -->
+            </div>
+            <div id="empty-cart" class="empty-cart d-none">
+              <div class="fs-1 mb-2">🛒</div>
+              <p class="mb-0">購物車目前沒有餐點。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="alert alert-light border mt-3 small mb-0" role="note">
+          ※ 目前畫面使用範例餐點資料示範操作；正式使用時會改由菜單資料及購物車資料帶入。
+        </div>
+      </section>
+
+      <!-- 結帳表單與金額 -->
+      <section class="col-lg-5" aria-labelledby="checkout-title">
+        <div class="card section-card mb-4">
+          <div class="card-body p-3 p-md-4">
+            <h2 id="checkout-title" class="h5 fw-bold mb-3">取餐資料</h2>
+
+            <form id="checkout-form">
+              <div class="mb-3">
+                <label for="student-id" class="form-label fw-semibold">
+                  學號 <span class="required-mark">*</span>
+                </label>
+                <input class="form-control" id="student-id" name="student_id"
+                       placeholder="請輸入學號" required>
+              </div>
+
+              <div class="mb-3">
+                <label for="student-name" class="form-label fw-semibold">
+                  姓名 <span class="required-mark">*</span>
+                </label>
+                <input class="form-control" id="student-name" name="student_name"
+                       placeholder="請輸入姓名" required>
+              </div>
+
+              <div class="mb-3">
+                <label for="pickup-time" class="form-label fw-semibold">預計取餐時間</label>
+                <select class="form-select" id="pickup-time" name="pickup_time">
+                  <option value="儘快取餐">儘快取餐</option>
+                  <option value="12:00 - 12:15">12:00 - 12:15</option>
+                  <option value="12:15 - 12:30">12:15 - 12:30</option>
+                  <option value="12:30 - 12:45">12:30 - 12:45</option>
+                </select>
+              </div>
+
+              <div class="mb-4">
+                <label for="order-note" class="form-label fw-semibold">訂單備註</label>
+                <textarea class="form-control" id="order-note" name="note" rows="3"
+                          placeholder="例如：不要辣、不要香菜（選填）"></textarea>
+              </div>
+
+              <div class="border-top pt-3">
+                <div class="summary-row">
+                  <span class="text-secondary">商品小計</span>
+                  <span id="subtotal">$0</span>
+                </div>
+                <div class="summary-row">
+                  <span class="text-secondary">其他費用</span>
+                  <span>$0</span>
+                </div>
+                <hr>
+                <div class="summary-row align-items-center mb-3">
+                  <span class="fw-bold">應付總金額</span>
+                  <span class="total-price" id="total">$0</span>
+                </div>
+                <button class="btn btn-brand w-100" id="submit-order" type="submit">
+                  確認並送出訂單
+                </button>
+                <p class="small text-secondary text-center mt-3 mb-0">
+                  送出前請再次確認餐點及取餐資料。
+                </p>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- 訂單送出結果視窗 -->
+  <div class="modal fade" id="result-modal" tabindex="-1" aria-labelledby="result-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4">
+        <div class="modal-body text-center p-4 p-md-5">
+          <div class="display-5 mb-3" id="result-icon">✅</div>
+          <h2 class="h4 fw-bold" id="result-title">訂單已送出！</h2>
+          <p class="text-secondary mb-2" id="result-message">你的訂單已成功建立。</p>
+          <p class="mb-4">訂單編號：<strong id="order-number"></strong></p>
+          <button type="button" class="btn btn-brand px-4" data-bs-dismiss="modal">知道了</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 若專案已有 Bootstrap JavaScript，請改用專案內的檔案路徑 -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    // 範例購物車資料；正式串接時可改成從購物車或 API 取得。
+    const cartItems = [];
+
+    const cartList = document.getElementById("cart-list");
+    const emptyCart = document.getElementById("empty-cart");
+    const itemCount = document.getElementById("item-count");
+    const subtotalElement = document.getElementById("subtotal");
+    const totalElement = document.getElementById("total");
+    const submitButton = document.getElementById("submit-order");
+
+    function formatPrice(price) {
+      return "$" + price.toLocaleString("zh-TW");
+    }
+
+    function renderCart() {
+      cartList.innerHTML = "";
+
+      const totalQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+      const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+      itemCount.textContent = totalQuantity + " 份商品";
+      subtotalElement.textContent = formatPrice(subtotal);
+      totalElement.textContent = formatPrice(subtotal);
+
+      emptyCart.classList.toggle("d-none", cartItems.length !== 0);
+      cartList.classList.toggle("d-none", cartItems.length === 0);
+      submitButton.disabled = cartItems.length === 0;
+
+      cartItems.forEach(item => {
+        const row = document.createElement("div");
+        row.className = "cart-item d-flex align-items-center gap-3 py-3 border-bottom";
+
+        row.innerHTML = `
+          <img class="food-thumb" src="${item.image}" alt="${item.name}">
+          <div class="flex-grow-1 min-width-0">
+            <div class="fw-bold">${item.name}</div>
+            <div class="small text-secondary">${item.description}</div>
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 item-bottom">
+              <div class="quantity-control" aria-label="${item.name}數量">
+                <button type="button" data-action="decrease" data-id="${item.id}" aria-label="減少數量">−</button>
+                <span class="fw-semibold">${item.quantity}</span>
+                <button type="button" data-action="increase" data-id="${item.id}" aria-label="增加數量">+</button>
+              </div>
+              <span class="fw-bold">${formatPrice(item.price * item.quantity)}</span>
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm btn-link text-danger text-decoration-none"
+                  data-action="remove" data-id="${item.id}">移除</button>
+        `;
+        cartList.appendChild(row);
+      });
+    }
+
+    cartList.addEventListener("click", event => {
+      const button = event.target.closest("button[data-action]");
+      if (!button) return;
+
+      const id = Number(button.dataset.id);
+      const item = cartItems.find(product => product.id === id);
+      if (!item) return;
+
+      if (button.dataset.action === "increase") item.quantity += 1;
+      if (button.dataset.action === "decrease") item.quantity = Math.max(1, item.quantity - 1);
+      if (button.dataset.action === "remove") {
+        const index = cartItems.findIndex(product => product.id === id);
+        if (index !== -1) cartItems.splice(index, 1);
+      }
+      renderCart();
+    });
+
+    document.getElementById("checkout-form").addEventListener("submit", async event => {
+      event.preventDefault();
+
+      if (cartItems.length === 0) {
+        alert("購物車沒有餐點，請先選擇餐點。");
+        return;
+      }
+
+      const form = event.currentTarget;
+      if (!form.reportValidity()) return;
+
+      const orderData = {
+        student_id: document.getElementById("student-id").value.trim(),
+        student_name: document.getElementById("student-name").value.trim(),
+        pickup_time: document.getElementById("pickup-time").value,
+        note: document.getElementById("order-note").value.trim(),
+        items: cartItems.map(item => ({
+          meal_id: item.id,
+          quantity: item.quantity
+        }))
+      };
+
+      /*
+        正式串接後端時，可將下方示範區塊替換為：
+        const response = await fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(orderData)
+        });
+        if (!response.ok) throw new Error("訂單送出失敗");
+        const result = await response.json();
+
+        注意：實際 API 路徑與欄位名稱要以組員 C 提供的規格為準。
+      */
+
+      console.log("準備送出的訂單資料：", orderData);
+
+      // 暫時使用假資料模擬成功結果，尚未真的寫入資料庫。
+      const demoOrderNumber = "DEMO" + Date.now().toString().slice(-6);
+      document.getElementById("order-number").textContent = demoOrderNumber;
+      document.getElementById("result-icon").textContent = "✅";
+      document.getElementById("result-title").textContent = "訂單已送出！";
+      document.getElementById("result-message").textContent =
+        "目前為前端展示模式，訂單資料尚未傳送至後端。";
+
+      const modal = new bootstrap.Modal(document.getElementById("result-modal"));
+      modal.show();
+    });
+
+    renderCart();
+  </script>
+</body>
+</html>
