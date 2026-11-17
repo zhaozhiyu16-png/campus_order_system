@@ -76,9 +76,9 @@ def get_student_orders(student_id: str):
     
     # 查詢該學號的所有訂單，依建立時間排序
     cursor.execute(
-        "SELECT id, student_id, pickup_date, est_pickup_time, payment_method, status, created_at "
-        "FROM orders WHERE student_id = ? ORDER BY created_at DESC",
-        (student_id,)
+    "SELECT * FROM orders WHERE student_id = ? ORDER BY created_at DESC",
+    (student_id,)
+)
     )
     orders = cursor.fetchall()
     conn.close()
