@@ -75,9 +75,9 @@ def get_student_orders(student_id: str):
     cursor = conn.cursor()
     
     # 查詢該學號的所有訂單，依建立時間排序
-   cursor.execute(
-    "SELECT * FROM orders ORDER BY created_at DESC"
-)
+cursor.execute(
+        "SELECT * FROM orders ORDER BY created_at DESC"
+    )
     orders = cursor.fetchall()
     conn.close()
     
