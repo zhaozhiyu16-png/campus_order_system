@@ -87,3 +87,5 @@ def create_menu_item(item: MenuItemCreate):
           "created_at": created_at,
       },
   }
+    from orders import router as orders_router
+app.include_router(orders_router)
