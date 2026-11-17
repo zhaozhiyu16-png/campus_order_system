@@ -79,7 +79,6 @@ def get_student_orders(student_id: str):
     "SELECT * FROM orders WHERE student_id = ? ORDER BY created_at DESC",
     (student_id,)
 )
-    )
     orders = cursor.fetchall()
     conn.close()
     
