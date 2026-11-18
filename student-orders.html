@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>我的訂單｜校園小吃線上點餐系統</title>
+  <link rel="stylesheet" href="../assets/vendor/bootstrap.min.css">
+  <style>
+    :root { --brand: #146c43; --brand-soft: #eaf4ee; --page: #f5f8f6; }
+    body { font-family: "Microsoft JhengHei", system-ui, sans-serif; background: var(--page); color: #26352c; }
+    .navbar { background: var(--brand); }
+    .navbar-brand { color: white; font-weight: 700; }
+    .navbar .btn-outline-light { color: rgb(249, 151, 22); font-weight: 700; }
+    .page-wrap { max-width: 1000px; }
+    .page-title { color: var(--brand); font-weight: 800; }
+    .order-card { border: 1px solid #dce8df; border-radius: 16px; box-shadow: 0 5px 18px #183b2410; }
+    .order-number { color: #65736a; font-size: .9rem; }
+    .status { display: inline-block; padding: .35rem .75rem; border-radius: 999px; font-size: .85rem; font-weight: 700; }
+    .status-making { background: #fff1d6; color: #8a5a00; }
+    .status-ready { background: #dff3e6; color: #17643a; }
+    .status-done { background: #e9ecef; color: #58616a; }
+    .detail-label { color: #758078; font-size: .88rem; }
+    .detail-value { font-weight: 600; }
+    .empty-state { border: 2px dashed #cbd9ce; border-radius: 16px; background: white; }
+    .btn-brand { background: var(--brand); color: white; }
+    .btn-brand:hover { background: #0f5735; color: white; }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg">
+    <div class="container page-wrap">
+      <a class="navbar-brand" href="menu.html">校園小吃線上點餐系統</a>
+      <a class="btn btn-sm btn-outline-light" href="checkout.html">返回結帳</a>
+    </div>
+  </nav>
+
+  <main class="container page-wrap py-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+      <div>
+        <p class="text-secondary mb-1">學生專區</p>
+        <h1 class="page-title h2 mb-1">我的訂單</h1>
+        <p class="text-secondary mb-0">查詢訂單內容、目前製作進度與預計取餐時間。</p>
+      </div>
+      <button class="btn btn-brand" id="refreshBtn" type="button">重新整理</button>
+    </div>
+
+    <section class="card border-0 rounded-4 p-3 p-md-4 mb-4">
+      <form id="searchForm" class="row g-3 align-items-end">
+        <div class="col-md-8">
+          <label for="studentId" class="form-label fw-semibold">學生學號</label>
+          <input class="form-control" id="studentId" name="studentId" placeholder="例如：S123456" required>
+          <div class="form-text">請輸入下單時使用的學號，才能查詢自己的訂單。</div>
+        </div>
+        <div class="col-md-4 d-grid">
+          <button class="btn btn-brand" type="submit">查詢訂單</button>
+        </div>
+      </form>
+    </section>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="h5 fw-bold mb-0">查詢結果</h2>
+      <span class="text-secondary small" id="resultCount">尚未查詢</span>
+    </div>
+    <div id="ordersList" class="d-grid gap-3">
+      <div class="empty-state text-center p-5 text-secondary">
+        請先輸入學號，再按下「查詢訂單」。
+      </div>
+    </div>
+    <p class="small text-secondary mt-4 mb-0">目前畫面使用示範資料。正式版需由後端 API 回傳該學號的訂單紀錄。</p>
+  </main>
+
+  <script>
+    // 示範資料：正式串接時，改由後端查詢 API 回傳。
+    const demoOrders = [
+      {
+        id: "DEMO-20261116-001", studentId: "S123456",
+        items: [{ name: "雞排", quantity: 1, price: 75 }, { name: "珍珠奶茶", quantity: 1, price: 55 }],
+        total: 130, status: "製作中", eta: "12:30", createdAt: "2026/11/16 12:05", note: "奶茶少冰"
+      },
+      {
+        id: "DEMO-20261115-004", studentId: "S123456",
+        items: [{ name: "蛋餅", quantity: 2, price: 35 }],
+        total: 70, status: "可取餐", eta: "已完成製作", createdAt: "2026/11/15 09:10", note: "無"
+      },
+      {
+        id: "DEMO-20261114-002", studentId: "S999999",
+        items: [{ name: "飯糰", quantity: 1, price: 40 }],
+        total: 40, status: "已完成", eta: "—", createdAt: "2026/11/14 08:20", note: "無"
+      }
+    ];
+
+    const list = document.getElementById("ordersList");
+    const count = document.getElementById("resultCount");
+    const form = document.getElementById("searchForm");
+    const studentInput = document.getElementById("studentId");
+
+    function statusClass(status) {
+      if (status === "製作中" || status === "待接單") return "status-making";
+      if (status === "可取餐") return "status-ready";
+      return "status-done";
+    }
+
+    function renderOrders(studentId) {
+      const orders = demoOrders.filter(order => order.studentId.toLowerCase() === studentId.toLowerCase());
+      count.textContent = `共 ${orders.length} 筆訂單`;
+      if (!orders.length) {
+        list.innerHTML = `<div class="empty-state text-center p-5 text-secondary">找不到這個學號的訂單，請確認學號是否正確。</div>`;
+        return;
+      }
+
+      list.innerHTML = orders.map(order => `
+        <article class="card order-card">
+          <div class="card-body p-3 p-md-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+              <div>
+                <div class="order-number">訂單編號</div>
+                <div class="fw-bold">${order.id}</div>
+                <div class="small text-secondary mt-1">下單時間：${order.createdAt}</div>
+              </div>
+              <span class="status ${statusClass(order.status)}">${order.status}</span>
+            </div>
+            <div class="row g-3">
+              <div class="col-md-7">
+                <div class="detail-label mb-2">餐點內容</div>
+                ${order.items.map(item => `<div class="d-flex justify-content-between py-1"><span>${item.name} × ${item.quantity}</span><span>$${item.price * item.quantity}</span></div>`).join("")}
+                <hr class="my-2">
+                <div class="d-flex justify-content-between fw-bold"><span>訂單總額</span><span>$${order.total}</span></div>
+              </div>
+              <div class="col-md-5">
+                <div class="mb-3"><div class="detail-label">預計取餐時間</div><div class="detail-value">${order.eta}</div></div>
+                <div><div class="detail-label">備註</div><div class="detail-value">${order.note}</div></div>
+              </div>
+            </div>
+            <div class="d-flex justify-content-end mt-3">
+              <a class="btn btn-outline-danger btn-sm" href="cancel-order.html?orderId=${encodeURIComponent(order.id)}">前往取消訂單</a>
+            </div>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+      const studentId = studentInput.value.trim();
+      if (!studentId) return;
+      renderOrders(studentId);
+    });
+    document.getElementById("refreshBtn").addEventListener("click", () => {
+      if (studentInput.value.trim()) renderOrders(studentInput.value.trim());
+    });
+
+    // 若從取消頁返回，可保留查詢學號。
+    const savedStudentId = sessionStorage.getItem("studentId");
+    if (savedStudentId) studentInput.value = savedStudentId;
+    form.addEventListener("submit", () => sessionStorage.setItem("studentId", studentInput.value.trim()));
+  </script>
+</body>
+</html>
