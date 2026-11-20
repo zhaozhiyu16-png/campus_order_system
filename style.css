@@ -28,7 +28,7 @@ body {
 .shop-info h1, .shop-header h1 { margin: 2px 0 6px; font-size: 28px; }
 .eyebrow { margin: 0; color: var(--brand); font-size: 13px; font-weight: 700; letter-spacing: 1px; }
 .shop-description, .shop-hours { margin: 4px 0; color: var(--muted); font-size: 14px; }
-.page-content { max-width: 900px; margin: 20px auto; padding: 0 16px; }
+.page-content { max-width: 1100px; margin: 20px auto; padding: 0 16px; }
 .notice { padding: 14px 18px; background: #fff9e9; border: 1px solid #f1e4bd; border-radius: 12px; }
 .notice strong { color: #80601c; }
 .notice p { margin: 3px 0 0; color: #6f654d; font-size: 14px; }
@@ -77,4 +77,79 @@ body {
   .food-image { flex-basis: 88px; width: 88px; min-height: 88px; font-size: 34px; }
   .food-title-row h3 { font-size: 15px; }
   .food-details p { font-size: 12px; }
+}
+/* 菜單與購物車左右排列 */
+.menu-cart-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 20px;
+  align-items: start;
+}
+
+/* 購物車外觀 */
+.cart-section {
+  padding: 22px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  position: sticky;
+  top: 20px;
+}
+
+.cart-section h2 {
+  margin-top: 0;
+  font-size: 21px;
+}
+
+.cart-item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.cart-quantity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.cart-quantity button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+}
+
+.cart-total {
+  display: flex;
+  justify-content: space-between;
+  margin: 15px 0;
+}
+
+.checkout-button {
+  width: 100%;
+  padding: 11px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--brand);
+  color: white;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.checkout-button:hover {
+  background: var(--brand-dark);
+}
+
+/* 手機版改成上下排列 */
+@media (max-width: 700px) {
+  .menu-cart-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .cart-section {
+    position: static;
+  }
 }
