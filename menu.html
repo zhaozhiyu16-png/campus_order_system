@@ -37,15 +37,15 @@
           <div class="food-details">
             <div class="food-title-row"><h3>香煎雞腿便當</h3><span class="food-price">$100</span></div>
             <p>香煎雞腿搭配每日新鮮配菜。</p>
-            <div class="food-bottom"><span class="food-tag">人氣餐點</span><button type="button" class="add-button" aria-label="香煎雞腿便當，加入購物車">＋</button></div>
+            <div class="food-bottom"><span class="food-tag">人氣餐點</span><button type="button" class="add-button" aria-label="香煎雞腿便當，加入購物車"onclick="addToCart(1, '香煎雞腿便當', 100)">＋</button></div>
           </div>
         </article>
         <article class="menu-item">
           <div class="food-image food-two" role="img" aria-label="滷肉飯示意圖">🍚</div>
           <div class="food-details">
             <div class="food-title-row"><h3>香噴噴滷肉飯</h3><span class="food-price">$60</span></div>
-            <p>鹹香滷肉淋在熱騰騰的白飯上。</p>
-            <div class="food-bottom"><span class="food-tag">經典主食</span><button type="button" class="add-button" aria-label="香噴噴滷肉飯，加入購物車">＋</button></div>
+           <p>鹹香滷肉淋在熱騰騰的白飯上。</p>
+            <div class="food-bottom"><span class="food-tag">經典主食</span><button type="button" class="add-button" aria-label="香噴噴滷肉飯，加入購物車"onclick="addToCart(2, '香噴噴滷肉飯', 60)">＋</button></div>
           </div>
         </article>
         <article class="menu-item">
@@ -53,7 +53,7 @@
           <div class="food-details">
             <div class="food-title-row"><h3>酥脆炸雞排</h3><span class="food-price">$75</span></div>
             <p>外酥內嫩，適合當作點心或加菜。</p>
-            <div class="food-bottom"><span class="food-tag">人氣點心</span><button type="button" class="add-button" aria-label="酥脆炸雞排，加入購物車">＋</button></div>
+            <div class="food-bottom"><span class="food-tag">人氣點心</span><button type="button" class="add-button" aria-label="酥脆炸雞排，加入購物車"onclick="addToCart(3, '酥脆炸雞腿', 75)">＋</button></div>
           </div>
         </article>
         <article class="menu-item" id="drinks">
@@ -61,11 +61,105 @@
           <div class="food-details">
             <div class="food-title-row"><h3>珍珠奶茶</h3><span class="food-price">$50</span></div>
             <p>香濃奶茶搭配 Q 彈珍珠。</p>
-            <div class="food-bottom"><span class="food-tag">飲料</span><button type="button" class="add-button" aria-label="珍珠奶茶，加入購物車">＋</button></div>
+            <div class="food-bottom"><span class="food-tag">飲料</span><button type="button" class="add-button" aria-label="珍珠奶茶，加入購物車"onclick="addToCart(4, '珍珠奶茶', 50)">＋</button></div>
           </div>
         </article>
       </div>
     </section>
+    <!-- 右側購物車 -->
+<aside class="cart-section">
+  <h2>我的購物車</h2>
+
+  <div id="cartItems">
+    <p>目前購物車是空的</p>
+  </div>
+
+  <hr>
+
+  <div class="cart-total">
+    <strong>總金額：</strong>
+    <strong>$<span id="cartTotal">0</span></strong>
+  </div>
+
+  <button type="button" class="checkout-button"
+          onclick="goToCheckout()">
+    前往結帳
+  </button>
+</aside>
+  <script>
+let cart = [];
+
+function addToCart(id, name, price) {
+  const item = cart.find(item => item.id === id);
+
+  if (item) {
+    item.quantity++;
+  } else {
+    cart.push({
+      id: id,
+      name: name,
+      price: price,
+      quantity: 1
+    });
+  }
+
+  updateCart();
+}
+
+function updateCart() {
+  const cartItems = document.getElementById("cartItems");
+  const cartTotal = document.getElementById("cartTotal");
+
+  cartItems.innerHTML = "";
+
+  if (cart.length === 0) {
+    cartItems.innerHTML = "<p>目前購物車是空的</p>";
+  }
+
+  let total = 0;
+
+  cart.forEach(item => {
+    const subtotal = item.price * item.quantity;
+    total += subtotal;
+
+    cartItems.innerHTML += `
+      <div class="cart-item">
+        <strong>${item.name}</strong>
+        <p>$${item.price} × ${item.quantity}</p>
+
+        <div class="cart-quantity">
+          <button type="button"
+            onclick="changeQuantity(${item.id}, -1)">－</button>
+
+          <span>${item.quantity}</span>
+
+          <button type="button"
+            onclick="changeQuantity(${item.id}, 1)">＋</button>
+        </div>
+
+        <p>小計：$${subtotal}</p>
+      </div>
+    `;
+  });
+
+  cartTotal.textContent = total;
+}
+
+function changeQuantity(id, amount) {
+  const item = cart.find(item => item.id === id);
+
+  if (!item) return;
+
+  item.quantity += amount;
+
+  if (item.quantity <= 0) {
+    cart = cart.filter(item => item.id !== id);
+  }
+
+  updateCart();
+}
+</script>
+    
     <p class="demo-note">目前為靜態展示頁面，餐點、價格及按鈕都是範例，尚未連接後端 API。</p>
   </main>
   <footer class="site-footer">校園小吃線上點餐系統｜課堂專題展示</footer>
