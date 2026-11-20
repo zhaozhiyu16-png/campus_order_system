@@ -262,7 +262,9 @@
 
   <script>
     // 範例購物車資料；正式串接時可改成從購物車或 API 取得。
-    const cartItems = [];
+    const cartItems = JSON.parse(
+  sessionStorage.getItem("cart") || "[]"
+);
 
     const cartList = document.getElementById("cart-list");
     const emptyCart = document.getElementById("empty-cart");
