@@ -162,6 +162,11 @@ myOrders.forEach(order => {
   return "可取餐";
 }
 
+    setInterval(() => {
+  // 重新執行你原本的訂單顯示函式
+  renderOrders();
+}, 5000);
+
     function renderOrders(studentId) {
       const orders = demoOrders.filter(order => order.studentId.toLowerCase() === studentId.toLowerCase());
       count.textContent = `共 ${orders.length} 筆訂單`;
