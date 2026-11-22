@@ -70,29 +70,67 @@
   </main>
 
   <script>
-    // 示範資料：正式串接時，改由後端查詢 API 回傳。
-    const demoOrders = [
-      {
-        id: "DEMO-20261116-001", studentId: "S123456",
-        items: [{ name: "雞排", quantity: 1, price: 75 }, { name: "珍珠奶茶", quantity: 1, price: 55 }],
-        total: 130, status: "製作中", eta: "12:30", createdAt: "2026/11/16 12:05", note: "奶茶少冰"
-      },
-      {
-        id: "DEMO-20261115-004", studentId: "S123456",
-        items: [{ name: "蛋餅", quantity: 2, price: 35 }],
-        total: 70, status: "可取餐", eta: "已完成製作", createdAt: "2026/11/15 09:10", note: "無"
-      },
-      {
-        id: "DEMO-20261114-002", studentId: "S999999",
-        items: [{ name: "飯糰", quantity: 1, price: 40 }],
-        total: 40, status: "已完成", eta: "—", createdAt: "2026/11/14 08:20", note: "無"
-      }
-    ];
+    // 取得已儲存的訂單
+const orders = JSON.parse(
+  localStorage.getItem("orders") || "[]"
+);
 
-    const list = document.getElementById("ordersList");
-    const count = document.getElementById("resultCount");
-    const form = document.getElementById("searchForm");
-    const studentInput = document.getElementById("studentId");
+// 取得 HTML 元素
+const list = document.getElementById("ordersList");
+const count = document.getElementById("resultCount");
+const form = document.getElementById("searchForm");
+const studentInput = document.getElementById("studentId");
+
+// 按下查詢時才篩選訂單
+form.addEventListener("submit", event => {
+  event.preventDefault();
+
+  const studentId = studentInput.value.trim();
+
+  const myOrders = orders.filter(
+    order => order.studentId === studentId
+  );
+
+  console.log("查詢學號：", studentId);
+  console.log("找到的訂單：", myOrders);
+  console.log("全部訂單：", orders);
+
+  count.textContent = `查詢結果：${myOrders.length} 筆`;
+
+  // 顯示訂單
+list.innerHTML = "";
+
+if (myOrders.length === 0) {
+  list.innerHTML = "<p>查無訂單資料</p>";
+  return;
+}
+
+myOrders.forEach(order => {
+  const orderElement = document.createElement("div");
+
+  orderElement.className = "order-card";
+
+  orderElement.innerHTML = `
+    <h3>訂單編號：${order.orderNumber || "未提供"}</h3>
+    <p>學生姓名：${order.studentName || "未提供"}</p>
+    <p>訂單時間：${order.createdAt || "未提供"}</p>
+
+    <h4>餐點內容</h4>
+    <ul>
+      ${order.items.map(item => `
+        <li>
+          ${item.name} × ${item.quantity}
+          （$${item.price * item.quantity}）
+        </li>
+      `).join("")}
+    </ul>
+
+    <p><strong>總金額：$${order.total}</strong></p>
+  `;
+
+  list.appendChild(orderElement);
+});
+});
 
     function statusClass(status) {
       if (status === "製作中" || status === "待接單") return "status-making";
