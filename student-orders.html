@@ -149,6 +149,10 @@ myOrders.forEach(order => {
 
     <p><strong>總金額：$${order.total}</strong></p>
   `;
+  <a class="btn btn-outline-danger btn-sm"
+  href="cancel-order.html?orderId=${encodeURIComponent(order.orderNumber)}">
+  前往取消訂單
+  </a>
 
   list.appendChild(orderElement);
 });
@@ -161,6 +165,10 @@ myOrders.forEach(order => {
     }
 
     function getOrderStatus(order) {
+  // 如果已經取消，優先顯示已取消
+  if (order.status === "已取消") {
+    return "已取消";
+  }
   const createdTime = new Date(order.createdAt).getTime();
   const elapsed = Date.now() - createdTime;
 
