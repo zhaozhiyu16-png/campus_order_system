@@ -110,14 +110,23 @@ myOrders.forEach(order => {
 
   orderElement.className = "order-card";
 
+  // 根據訂單建立時間判斷目前狀態
+  const status = getOrderStatus(order);
+
   orderElement.innerHTML = `
     <h3>訂單編號：${order.orderNumber || "未提供"}</h3>
+
+    <p>
+      訂單狀態：
+      <span class="${statusClass(status)}">${status}</span>
+    </p>
+
     <p>學生姓名：${order.studentName || "未提供"}</p>
     <p>訂單時間：${order.createdAt || "未提供"}</p>
 
     <h4>餐點內容</h4>
     <ul>
-      ${order.items.map(item => `
+      ${(order.items || []).map(item => `
         <li>
           ${item.name} × ${item.quantity}
           （$${item.price * item.quantity}）
@@ -128,11 +137,6 @@ myOrders.forEach(order => {
     <p><strong>總金額：$${order.total}</strong></p>
   `;
 
-  <p>
-    訂單狀態：
-    <span class="${statusClass(status)}">${status}</span>
-  </p>
-                 
   list.appendChild(orderElement);
 });
 });
