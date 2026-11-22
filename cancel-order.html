@@ -79,63 +79,185 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    // 示範資料：正式版應以訂單編號向後端取得訂單內容與可否取消狀態。
-    const demoOrder = {
-      id: "DEMO-20261116-001",
-      items: [{ name: "雞排", quantity: 1, price: 75 }, { name: "珍珠奶茶", quantity: 1, price: 55 }],
-      total: 130, status: "製作中"
-    };
+  <script>   
+const orderIdInput = document.getElementById("orderId");
+const orderInfo = document.getElementById("orderInfo");
+const message = document.getElementById("message");
 
-    const orderIdInput = document.getElementById("orderId");
-    const orderInfo = document.getElementById("orderInfo");
-    const message = document.getElementById("message");
-    const confirmModal = new bootstrap.Modal(document.getElementById("confirmModal"));
-    let currentOrder = null;
+const confirmModal = new bootstrap.Modal(
+  document.getElementById("confirmModal")
+);
 
-    function loadDemoOrder() {
-      const id = orderIdInput.value.trim();
-      if (id === demoOrder.id) {
-        currentOrder = demoOrder;
-        orderInfo.innerHTML = `
-          <div class="d-flex justify-content-between flex-wrap gap-2">
-            <div><div class="text-secondary small">訂單編號</div><strong>${currentOrder.id}</strong></div>
-            <div><div class="text-secondary small">目前狀態</div><strong>${currentOrder.status}</strong></div>
-          </div>
-          <hr>
-          ${currentOrder.items.map(item => `<div class="d-flex justify-content-between py-1"><span>${item.name} × ${item.quantity}</span><span>$${item.price * item.quantity}</span></div>`).join("")}
-          <hr class="my-2">
-          <div class="d-flex justify-content-between fw-bold"><span>訂單總額</span><span>$${currentOrder.total}</span></div>`;
-        message.innerHTML = "";
-      } else {
-        currentOrder = null;
-        orderInfo.innerHTML = `<div class="text-secondary">沒有找到這筆示範訂單。請使用示範編號：${demoOrder.id}</div>`;
-      }
-    }
+let currentOrder = null;
 
-    orderIdInput.addEventListener("input", loadDemoOrder);
-    const params = new URLSearchParams(location.search);
-    if (params.get("orderId")) orderIdInput.value = params.get("orderId");
-    loadDemoOrder();
+// 讀取所有訂單
+function getOrders() {
+  return JSON.parse(localStorage.getItem("orders") || "[]");
+}
 
-    document.getElementById("cancelBtn").addEventListener("click", () => {
-      if (!currentOrder) {
-        message.innerHTML = '<div class="alert alert-warning mb-0">請先輸入有效的訂單編號。</div>';
-        return;
-      }
-      if (currentOrder.status === "可取餐" || currentOrder.status === "已完成") {
-        message.innerHTML = '<div class="alert alert-warning mb-0">這筆訂單目前狀態不允許取消（示範規則）。</div>';
-        return;
-      }
-      confirmModal.show();
-    });
+// 儲存所有訂單
+function saveOrders(orders) {
+  localStorage.setItem("orders", JSON.stringify(orders));
+}
 
-    document.getElementById("confirmCancelBtn").addEventListener("click", () => {
-      confirmModal.hide();
-      // TODO：與組員 B 確認路徑、權限驗證與回傳格式後，再呼叫 DELETE API。
-      // fetch(`/orders/${encodeURIComponent(currentOrder.id)}`, { method: "DELETE" })
-      message.innerHTML = '<div class="alert alert-success mb-0">示範：已送出取消申請。這不代表資料庫中的訂單已經取消。</div>';
-    });
+// 判斷訂單目前狀態
+function getOrderStatus(order) {
+  if (order.status === "已取消") {
+    return "已取消";
+  }
+
+  const createdTime = new Date(order.createdAt).getTime();
+  const elapsed = Date.now() - createdTime;
+
+  if (elapsed < 3 * 60 * 1000) {
+    return "待接單";
+  }
+
+  if (elapsed < 5 * 60 * 1000) {
+    return "製作中";
+  }
+
+  return "可取餐";
+}
+
+// 判斷是否允許取消
+function canCancel(order) {
+  const status = getOrderStatus(order);
+
+  return status === "待接單";
+}
+
+// 顯示訂單資料
+function loadOrder() {
+  const id = orderIdInput.value.trim();
+  const orders = getOrders();
+
+  currentOrder = orders.find(
+    order => order.orderNumber === id
+  );
+
+  if (!currentOrder) {
+    orderInfo.innerHTML =
+      '<div class="text-secondary">找不到這筆訂單，請確認訂單編號。</div>';
+    message.innerHTML = "";
+    return;
+  }
+
+  const status = getOrderStatus(currentOrder);
+
+  orderInfo.innerHTML = `
+    <div>
+      <div class="text-secondary small">訂單編號</div>
+      <strong>${currentOrder.orderNumber}</strong>
+    </div>
+
+    <div class="mt-2">
+      <div class="text-secondary small">目前狀態</div>
+      <strong>${status}</strong>
+    </div>
+
+    <hr>
+
+    <h6>餐點內容</h6>
+
+    ${(currentOrder.items || []).map(item => `
+      <div class="d-flex justify-content-between py-1">
+        <span>${item.name} × ${item.quantity}</span>
+        <span>$${item.price * item.quantity}</span>
+      </div>
+    `).join("")}
+
+    <hr>
+
+    <div class="d-flex justify-content-between fw-bold">
+      <span>訂單總額</span>
+      <span>$${currentOrder.total}</span>
+    </div>
+  `;
+
+  message.innerHTML = "";
+}
+
+// 輸入訂單編號時自動查詢
+orderIdInput.addEventListener("input", loadOrder);
+
+// 從 student-orders 接收訂單編號
+const params = new URLSearchParams(location.search);
+
+if (params.get("orderId")) {
+  orderIdInput.value = params.get("orderId");
+}
+
+loadOrder();
+
+// 第一次點擊：檢查是否允許取消
+document.getElementById("cancelBtn").addEventListener("click", () => {
+  loadOrder();
+
+  if (!currentOrder) {
+    message.innerHTML =
+      '<div class="alert alert-warning">請先輸入有效的訂單編號。</div>';
+    return;
+  }
+
+  if (!canCancel(currentOrder)) {
+    const status = getOrderStatus(currentOrder);
+
+    message.innerHTML =
+      `<div class="alert alert-warning">
+        ${status === "製作中"
+          ? "已在製作中，無法取消。"
+          : status === "可取餐"
+          ? "餐點已可取餐，無法取消。"
+          : "這筆訂單已取消，無法再次取消。"}
+      </div>`;
+    return;
+  }
+
+  confirmModal.show();
+});
+
+// 第二次點擊：再次確認狀態，避免等待期間超過取消期限
+document.getElementById("confirmCancelBtn").addEventListener("click", () => {
+  const orders = getOrders();
+
+  const index = orders.findIndex(
+    order => order.orderNumber === orderIdInput.value.trim()
+  );
+
+  confirmModal.hide();
+
+  if (index === -1) {
+    currentOrder = null;
+    message.innerHTML =
+      '<div class="alert alert-warning">找不到這筆訂單。</div>';
+    return;
+  }
+
+  const order = orders[index];
+
+  // 再次檢查，不能只靠第一次確認
+  if (!canCancel(order)) {
+    currentOrder = order;
+    loadOrder();
+
+    message.innerHTML =
+      '<div class="alert alert-warning">已在製作中或已進入後續狀態，無法取消。</div>';
+    return;
+  }
+
+  // 更新原本的訂單，不是刪除訂單
+  orders[index].status = "已取消";
+
+  saveOrders(orders);
+
+  currentOrder = orders[index];
+
+  loadOrder();
+
+  message.innerHTML =
+    '<div class="alert alert-success">訂單已成功取消。</div>';
+});
   </script>
 </body>
 </html>
