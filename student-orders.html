@@ -128,6 +128,11 @@ myOrders.forEach(order => {
     <p><strong>總金額：$${order.total}</strong></p>
   `;
 
+  <p>
+    訂單狀態：
+    <span class="${statusClass(status)}">${status}</span>
+  </p>
+                 
   list.appendChild(orderElement);
 });
 });
@@ -137,6 +142,21 @@ myOrders.forEach(order => {
       if (status === "可取餐") return "status-ready";
       return "status-done";
     }
+
+    function getOrderStatus(order) {
+  const createdTime = new Date(order.createdAt).getTime();
+  const elapsed = Date.now() - createdTime;
+
+  if (elapsed < 2 * 60 * 1000) {
+    return "待接單";
+  }
+
+  if (elapsed < 3 * 60 * 1000) {
+    return "製作中";
+  }
+
+  return "可取餐";
+}
 
     function renderOrders(studentId) {
       const orders = demoOrders.filter(order => order.studentId.toLowerCase() === studentId.toLowerCase());
