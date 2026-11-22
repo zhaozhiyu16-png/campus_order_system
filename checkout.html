@@ -366,6 +366,32 @@
 
       console.log("準備送出的訂單資料：", orderData);
 
+      // 取得學號與姓名
+const studentId = document.getElementById("student-id").value.trim();
+const studentName = document.getElementById("student-name").value.trim();
+
+// 讀取原本的訂單
+const orders = JSON.parse(
+  localStorage.getItem("orders") || "[]"
+);
+
+// 建立新訂單
+const newOrder = {
+  orderNumber: "DEMO" + Date.now().toString().slice(-6),
+  studentId: studentId,
+  studentName: studentName,
+  items: cartItems,
+  total: cartItems.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  ),
+  createdAt: new Date().toISOString()
+};
+
+// 儲存訂單
+orders.push(newOrder);
+localStorage.setItem("orders", JSON.stringify(orders));
+
       // 暫時使用假資料模擬成功結果，尚未真的寫入資料庫。
       const demoOrderNumber = "DEMO" + Date.now().toString().slice(-6);
       document.getElementById("order-number").textContent = demoOrderNumber;
