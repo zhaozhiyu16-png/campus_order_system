@@ -123,7 +123,7 @@
             </ul>
             <div class="d-flex justify-content-between align-items-center border-top pt-3 mt-2">
               <strong>總金額：$${Number(order.total_price || 0).toLocaleString("zh-TW")}</strong>
-              <a href="cancel-order.html?orderId=${order.id}" class="btn btn-sm btn-outline-danger">取消此訂單</a>
+              <button type="button" class="btn btn-sm btn-outline-danger" onclick="cancelOrder(${order.id}, '${cleanedId}')">取消此訂單</button>
             </div>
           `;
           list.appendChild(orderElement);
@@ -146,7 +146,14 @@
       const studentId = studentInput.value.trim();
       if (studentId) fetchAndRenderOrders(studentId);
     });
+   } catch (error) {
+        count.textContent = "查詢失敗";
+        list.innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+      }
+    }
+    // 👉 在這裡貼上整段 async function cancelOrder(orderId, studentId) { ... }
 
+    form.addEventListener("submit", event => {
     const savedStudentId = sessionStorage.getItem("studentId");
     if (savedStudentId) {
       studentInput.value = savedStudentId;
