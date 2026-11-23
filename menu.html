@@ -33,52 +33,12 @@
     </nav>
 
     <section id="all" class="menu-section">
-      <div class="section-heading"><h2>全部餐點</h2><span>共 4 項</span></div>
-      <div class="menu-list">
-        <article class="menu-item" id="main-meals">
-          <div class="food-image food-one" role="img" aria-label="雞腿便當示意圖">🍱</div>
-          <div class="food-details">
-            <div class="food-title-row"><h3>香煎雞腿便當</h3><span class="food-price">$100</span></div>
-            <p>香煎雞腿搭配每日新鮮配菜。</p>
-            <div class="food-bottom">
-              <span class="food-tag">人氣餐點</span>
-              <button type="button" class="add-button" aria-label="香煎雞腿便當，加入購物車" onclick="addToCart(1, '香煎雞腿便當', 100)">＋</button>
-            </div>
-          </div>
-        </article>
-        <article class="menu-item">
-          <div class="food-image food-two" role="img" aria-label="滷肉飯示意圖">🍚</div>
-          <div class="food-details">
-            <div class="food-title-row"><h3>香噴噴滷肉飯</h3><span class="food-price">$60</span></div>
-            <p>鹹香滷肉淋在熱騰騰的白飯上。</p>
-            <div class="food-bottom">
-              <span class="food-tag">經典主食</span>
-              <button type="button" class="add-button" aria-label="香噴噴滷肉飯，加入購物車" onclick="addToCart(2, '香噴噴滷肉飯', 60)">＋</button>
-            </div>
-          </div>
-        </article>
-        <article class="menu-item">
-          <div class="food-image food-three" role="img" aria-label="炸雞腿示意圖">🍗</div>
-          <div class="food-details">
-            <div class="food-title-row"><h3>酥脆炸雞腿</h3><span class="food-price">$75</span></div>
-            <p>外酥內嫩，適合當作點心或加菜。</p>
-            <div class="food-bottom">
-              <span class="food-tag">人氣點心</span>
-              <button type="button" class="add-button" aria-label="酥脆炸雞腿，加入購物車" onclick="addToCart(3, '酥脆炸雞腿', 75)">＋</button>
-            </div>
-          </div>
-        </article>
-        <article class="menu-item" id="drinks">
-          <div class="food-image food-four" role="img" aria-label="珍珠奶茶示意圖">🧋</div>
-          <div class="food-details">
-            <div class="food-title-row"><h3>珍珠奶茶</h3><span class="food-price">$50</span></div>
-            <p>香濃奶茶搭配 Q 彈珍珠。</p>
-            <div class="food-bottom">
-              <span class="food-tag">飲料</span>
-              <button type="button" class="add-button" aria-label="珍珠奶茶，加入購物車" onclick="addToCart(4, '珍珠奶茶', 50)">＋</button>
-            </div>
-          </div>
-        </article>
+      <div class="section-heading">
+        <h2>全部餐點</h2>
+        <span id="menuCount">載入中...</span>
+      </div>
+      <div class="menu-list" id="menuList">
+        <p>正在載入菜單資料...</p>
       </div>
     </section>
 
@@ -98,13 +58,150 @@
     </aside>
 
     <script>
+      const API_BASE = "";
       let cart = JSON.parse(sessionStorage.getItem("cart") || "[]");
+
+      const fallbackMenus = [
+        {
+          id: 1,
+          name: "香煎雞腿便當",
+          price: 100,
+          description: "香煎雞腿搭配每日新鮮配菜。",
+          tag: "人氣餐點",
+          icon: "🍱",
+          imageClass: "food-one",
+          anchorId: "main-meals"
+        },
+        {
+          id: 2,
+          name: "香噴噴滷肉飯",
+          price: 60,
+          description: "鹹香滷肉淋在熱騰騰的白飯上。",
+          tag: "經典主食",
+          icon: "🍚",
+          imageClass: "food-two"
+        },
+        {
+          id: 3,
+          name: "酥脆炸雞腿",
+          price: 75,
+          description: "外酥內嫩，適合當作點心或加菜。",
+          tag: "人氣點心",
+          icon: "🍗",
+          imageClass: "food-three"
+        },
+        {
+          id: 4,
+          name: "珍珠奶茶",
+          price: 50,
+          description: "香濃奶茶搭配 Q 彈珍珠。",
+          tag: "飲料",
+          icon: "🧋",
+          imageClass: "food-four",
+          anchorId: "drinks"
+        }
+      ];
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function getItemMeta(item, index) {
+        const imageClasses = ["food-one", "food-two", "food-three", "food-four"];
+        const defaultIcons = ["🍱", "🍚", "🍗", "🧋"];
+        const name = item.name || "未命名餐點";
+        const isDrink = name.includes("茶") || name.includes("飲") || name.includes("奶");
+
+        return {
+          id: item.id,
+          name: name,
+          price: Number(item.price) || 0,
+          description: item.description || (isDrink ? "清涼解渴，搭配餐點更滿足。" : "現點現做，新鮮供應。"),
+          tag: item.tag || (isDrink ? "飲料" : "供應中"),
+          icon: item.icon || defaultIcons[index % defaultIcons.length],
+          imageClass: item.imageClass || imageClasses[index % imageClasses.length],
+          anchorId: item.anchorId || (index === 0 ? "main-meals" : (isDrink ? "drinks" : ""))
+        };
+      }
+
+      function renderMenus(items) {
+        const menuList = document.getElementById("menuList");
+        const menuCount = document.getElementById("menuCount");
+
+        const availableItems = (items || []).filter(item =>
+          item.is_available === undefined || item.is_available === null || Number(item.is_available) === 1
+        );
+
+        menuCount.textContent = `共 ${availableItems.length} 項`;
+
+        if (availableItems.length === 0) {
+          menuList.innerHTML = "<p>目前沒有開放中的餐點。</p>";
+          return;
+        }
+
+        menuList.innerHTML = availableItems.map((rawItem, index) => {
+          const item = getItemMeta(rawItem, index);
+          const safeName = escapeHtml(item.name);
+          const safeDesc = escapeHtml(item.description);
+          const safeTag = escapeHtml(item.tag);
+          const safeIcon = escapeHtml(item.icon);
+          const idAttr = item.anchorId ? ` id="${escapeHtml(item.anchorId)}"` : "";
+
+          return `
+            <article class="menu-item"${idAttr}>
+              <div class="food-image ${escapeHtml(item.imageClass)}" role="img" aria-label="${safeName}示意圖">${safeIcon}</div>
+              <div class="food-details">
+                <div class="food-title-row">
+                  <h3>${safeName}</h3>
+                  <span class="food-price">$${item.price}</span>
+                </div>
+                <p>${safeDesc}</p>
+                <div class="food-bottom">
+                  <span class="food-tag">${safeTag}</span>
+                  <button
+                    type="button"
+                    class="add-button"
+                    aria-label="${safeName}，加入購物車"
+                    onclick="addToCart(${Number(item.id)}, '${encodeURIComponent(item.name)}', ${item.price})"
+                  >＋</button>
+                </div>
+              </div>
+            </article>
+          `;
+        }).join("");
+      }
+
+      async function loadMenus() {
+        try {
+          const response = await fetch(`${API_BASE}/menus`);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          const data = await response.json();
+          const list = Array.isArray(data) ? data : (data.items || data.menus || data.data || []);
+
+          if (list.length > 0) {
+            renderMenus(list);
+          } else {
+            renderMenus(fallbackMenus);
+          }
+        } catch (err) {
+          console.warn("讀取 /menus 失敗，改用預設餐點：", err);
+          renderMenus(fallbackMenus);
+        }
+      }
 
       function saveCart() {
         sessionStorage.setItem("cart", JSON.stringify(cart));
       }
 
-      function addToCart(id, name, price) {
+      function addToCart(id, encodedName, price) {
+        const name = decodeURIComponent(encodedName);
         const item = cart.find(product => product.id === id);
         if (item) {
           item.quantity++;
@@ -136,7 +233,7 @@
 
           cartItems.innerHTML += `
             <div class="cart-item">
-              <strong>${item.name}</strong>
+              <strong>${escapeHtml(item.name)}</strong>
               <p>$${item.price} × ${item.quantity}</p>
               <div class="cart-quantity">
                 <button type="button" onclick="changeQuantity(${item.id}, -1)">－</button>
@@ -172,6 +269,7 @@
         window.location.href = "checkout.html";
       }
 
+      loadMenus();
       updateCart();
     </script>
   </main>
