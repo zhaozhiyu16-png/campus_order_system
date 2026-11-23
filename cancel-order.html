@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>取消訂單｜校園小吃線上點餐系統</title>
-  <link rel="stylesheet" href="../assets/vendor/bootstrap.min.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     :root { --brand: #0f5735; --page: #f5f8f6; }
     body { font-family: "Microsoft JhengHei", system-ui, sans-serif; background: var(--page); color: #26352c; }
@@ -16,8 +16,6 @@
     .main-card { border: 1px solid #dce8df; border-radius: 18px; box-shadow: 0 5px 18px #79eea210; }
     .warning-panel { background: #fff7e6; border: 1px solid #f1d89d; border-radius: 12px; color: #74520c; }
     .order-info { background: #f7faf8; border-radius: 12px; }
-    .btn-brand { background: var(--brand); color: white; }
-    .btn-brand:hover { background: #0f5735; color: white; }
   </style>
 </head>
 <body>
@@ -36,7 +34,10 @@
     <section class="main-card card p-3 p-md-4">
       <div class="mb-3">
         <label for="orderId" class="form-label fw-semibold">訂單編號</label>
-        <input id="orderId" class="form-control" placeholder="請輸入要取消的訂單編號">
+        <div class="input-group">
+          <input id="orderId" class="form-control" placeholder="請輸入要取消的訂單編號（例如：1）">
+          <button type="button" class="btn btn-outline-success" id="loadOrderBtn">查詢訂單</button>
+        </div>
       </div>
 
       <div id="orderInfo" class="order-info p-3 mb-3">
@@ -48,8 +49,7 @@
         <div class="fw-bold mb-1">取消前請留意</div>
         <ul class="mb-0 ps-3">
           <li>請確認訂單編號與餐點內容正確。</li>
-          <li>訂單是否能取消，應以店家目前的接單／製作狀態及系統規則為準。</li>
-          <li>正式系統應由後端判斷是否允許取消，不能只靠前端按鈕控制。</li>
+          <li>確認取消後，系統將呼叫後端 <code>DELETE /orders/{order_id}</code> 移除該筆訂單。</li>
         </ul>
       </div>
 
@@ -59,7 +59,6 @@
       </div>
       <div id="message" class="mt-3" aria-live="polite"></div>
     </section>
-    <p class="small text-secondary mt-3">目前取消動作為前端示範，不會真的刪除或修改資料庫。正式串接時需配合組員的 DELETE API 規格。</p>
   </main>
 
   <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmTitle" aria-hidden="true">
@@ -69,7 +68,7 @@
           <h2 class="modal-title fs-5" id="confirmTitle">再次確認</h2>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
         </div>
-        <div class="modal-body">確定要取消這筆訂單嗎？此操作在正式系統中可能無法復原。</div>
+        <div class="modal-body">確定要取消這筆訂單嗎？此操作會直接刪除後端資料庫中的訂單紀錄。</div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">先不要</button>
           <button type="button" class="btn btn-danger" id="confirmCancelBtn">確定取消</button>
@@ -79,185 +78,107 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script>   
-const orderIdInput = document.getElementById("orderId");
-const orderInfo = document.getElementById("orderInfo");
-const message = document.getElementById("message");
+  <script>
+    const API_BASE = "http://127.0.0.1:8000";
+    const orderIdInput = document.getElementById("orderId");
+    const orderInfo = document.getElementById("orderInfo");
+    const message = document.getElementById("message");
+    const confirmModal = new bootstrap.Modal(document.getElementById("confirmModal"));
 
-const confirmModal = new bootstrap.Modal(
-  document.getElementById("confirmModal")
-);
+    let currentOrder = null;
 
-let currentOrder = null;
+    async function loadOrder() {
+      const rawId = orderIdInput.value.trim();
+      if (!rawId) {
+        orderInfo.innerHTML = '<div class="text-secondary">請輸入訂單編號。</div>';
+        return;
+      }
 
-// 讀取所有訂單
-function getOrders() {
-  return JSON.parse(localStorage.getItem("orders") || "[]");
-}
+      try {
+        const response = await fetch(`${API_BASE}/orders/${encodeURIComponent(rawId)}`);
+        const result = await response.json();
 
-// 儲存所有訂單
-function saveOrders(orders) {
-  localStorage.setItem("orders", JSON.stringify(orders));
-}
+        if (!response.ok) {
+          currentOrder = null;
+          orderInfo.innerHTML = `<div class="text-danger">${result.detail || "找不到這筆訂單，請確認訂單編號。"}</div>`;
+          return;
+        }
 
-// 判斷訂單目前狀態
-function getOrderStatus(order) {
-  if (order.status === "已取消") {
-    return "已取消";
-  }
+        currentOrder = result.data;
+        const itemsHtml = (currentOrder.items || []).map(item => `
+          <div class="d-flex justify-content-between py-1">
+            <span>${item.name} × ${item.quantity}</span>
+            <span>$${Number(item.price) * Number(item.quantity)}</span>
+          </div>
+        `).join("");
 
-  const createdTime = new Date(order.createdAt).getTime();
-  const elapsed = Date.now() - createdTime;
+        orderInfo.innerHTML = `
+          <div>
+            <div class="text-secondary small">訂單編號</div>
+            <strong>#${currentOrder.id}</strong>
+          </div>
+          <div class="mt-2">
+            <div class="text-secondary small">學生資訊</div>
+            <strong>${currentOrder.student_name || "未提供"}（${currentOrder.student_id || "未提供"}）</strong>
+          </div>
+          <div class="mt-2">
+            <div class="text-secondary small">目前狀態</div>
+            <strong>${currentOrder.status || "待接單"}</strong>
+          </div>
+          <hr>
+          <h6>餐點內容</h6>
+          ${itemsHtml || '<div class="text-secondary small">無明細資料</div>'}
+          <hr>
+          <div class="d-flex justify-content-between fw-bold">
+            <span>訂單總額</span>
+            <span>$${Number(currentOrder.total_price || 0).toLocaleString("zh-TW")}</span>
+          </div>
+        `;
+      } catch (error) {
+        currentOrder = null;
+        orderInfo.innerHTML = `<div class="text-danger">查詢訂單時發生錯誤：${error.message}</div>`;
+      }
+    }
 
-  if (elapsed < 3 * 60 * 1000) {
-    return "待接單";
-  }
+    document.getElementById("loadOrderBtn").addEventListener("click", loadOrder);
 
-  if (elapsed < 5 * 60 * 1000) {
-    return "製作中";
-  }
+    const params = new URLSearchParams(location.search);
+    if (params.get("orderId")) {
+      orderIdInput.value = params.get("orderId");
+      loadOrder();
+    }
 
-  return "可取餐";
-}
+    document.getElementById("cancelBtn").addEventListener("click", async () => {
+      message.innerHTML = "";
+      await loadOrder();
+      if (!currentOrder) {
+        message.innerHTML = '<div class="alert alert-warning">請先輸入有效的訂單編號。</div>';
+        return;
+      }
+      confirmModal.show();
+    });
 
-// 判斷是否允許取消
-function canCancel(order) {
-  const status = getOrderStatus(order);
+    document.getElementById("confirmCancelBtn").addEventListener("click", async () => {
+      const targetId = orderIdInput.value.trim();
+      confirmModal.hide();
 
-  return status === "待接單";
-}
+      try {
+        const response = await fetch(`${API_BASE}/orders/${encodeURIComponent(targetId)}`, {
+          method: "DELETE"
+        });
+        const result = await response.json();
 
-// 顯示訂單資料
-function loadOrder() {
-  const id = orderIdInput.value.trim();
-  const orders = getOrders();
+        if (!response.ok) {
+          throw new Error(result.detail || "取消訂單失敗");
+        }
 
-  currentOrder = orders.find(
-    order => order.orderNumber === id
-  );
-
-  if (!currentOrder) {
-    orderInfo.innerHTML =
-      '<div class="text-secondary">找不到這筆訂單，請確認訂單編號。</div>';
-    message.innerHTML = "";
-    return;
-  }
-
-  const status = getOrderStatus(currentOrder);
-
-  orderInfo.innerHTML = `
-    <div>
-      <div class="text-secondary small">訂單編號</div>
-      <strong>${currentOrder.orderNumber}</strong>
-    </div>
-
-    <div class="mt-2">
-      <div class="text-secondary small">目前狀態</div>
-      <strong>${status}</strong>
-    </div>
-
-    <hr>
-
-    <h6>餐點內容</h6>
-
-    ${(currentOrder.items || []).map(item => `
-      <div class="d-flex justify-content-between py-1">
-        <span>${item.name} × ${item.quantity}</span>
-        <span>$${item.price * item.quantity}</span>
-      </div>
-    `).join("")}
-
-    <hr>
-
-    <div class="d-flex justify-content-between fw-bold">
-      <span>訂單總額</span>
-      <span>$${currentOrder.total}</span>
-    </div>
-  `;
-
-  message.innerHTML = "";
-}
-
-// 輸入訂單編號時自動查詢
-orderIdInput.addEventListener("input", loadOrder);
-
-// 從 student-orders 接收訂單編號
-const params = new URLSearchParams(location.search);
-
-if (params.get("orderId")) {
-  orderIdInput.value = params.get("orderId");
-}
-
-loadOrder();
-
-// 第一次點擊：檢查是否允許取消
-document.getElementById("cancelBtn").addEventListener("click", () => {
-  loadOrder();
-
-  if (!currentOrder) {
-    message.innerHTML =
-      '<div class="alert alert-warning">請先輸入有效的訂單編號。</div>';
-    return;
-  }
-
-  if (!canCancel(currentOrder)) {
-    const status = getOrderStatus(currentOrder);
-
-    message.innerHTML =
-      `<div class="alert alert-warning">
-        ${status === "製作中"
-          ? "已在製作中，無法取消。"
-          : status === "可取餐"
-          ? "餐點已可取餐，無法取消。"
-          : "這筆訂單已取消，無法再次取消。"}
-      </div>`;
-    return;
-  }
-
-  confirmModal.show();
-});
-
-// 第二次點擊：再次確認狀態，避免等待期間超過取消期限
-document.getElementById("confirmCancelBtn").addEventListener("click", () => {
-  const orders = getOrders();
-
-  const index = orders.findIndex(
-    order => order.orderNumber === orderIdInput.value.trim()
-  );
-
-  confirmModal.hide();
-
-  if (index === -1) {
-    currentOrder = null;
-    message.innerHTML =
-      '<div class="alert alert-warning">找不到這筆訂單。</div>';
-    return;
-  }
-
-  const order = orders[index];
-
-  // 再次檢查，不能只靠第一次確認
-  if (!canCancel(order)) {
-    currentOrder = order;
-    loadOrder();
-
-    message.innerHTML =
-      '<div class="alert alert-warning">已在製作中或已進入後續狀態，無法取消。</div>';
-    return;
-  }
-
-  // 更新原本的訂單，不是刪除訂單
-  orders[index].status = "已取消";
-
-  saveOrders(orders);
-
-  currentOrder = orders[index];
-
-  loadOrder();
-
-  message.innerHTML =
-    '<div class="alert alert-success">訂單已成功取消。</div>';
-});
+        currentOrder = null;
+        orderInfo.innerHTML = '<div class="text-secondary">此筆訂單已取消並從系統移除。</div>';
+        message.innerHTML = `<div class="alert alert-success">${result.message || "訂單已成功取消。"}</div>`;
+      } catch (error) {
+        message.innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+      }
+    });
   </script>
 </body>
 </html>

@@ -4,10 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>校園小吃線上點餐系統｜購物車與結帳</title>
-
-  <!-- 如果你的專案有下載 Bootstrap，請確認這個相對路徑正確 -->
-  <link rel="stylesheet" href="../assets/vendor/bootstrap.min.css">
-
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     :root {
       --brand: #28745b;
@@ -37,14 +34,6 @@
       border: 0;
       border-radius: 18px;
       box-shadow: 0 5px 22px rgba(31, 65, 48, .06);
-    }
-
-    .food-thumb {
-      width: 76px;
-      height: 76px;
-      object-fit: cover;
-      border-radius: 13px;
-      background: #e8eee9;
     }
 
     .quantity-control {
@@ -119,19 +108,6 @@
       text-align: center;
       color: #718078;
     }
-
-    @media (max-width: 575.98px) {
-      .food-thumb {
-        width: 62px;
-        height: 62px;
-      }
-      .cart-item {
-        align-items: flex-start !important;
-      }
-      .item-bottom {
-        margin-top: 12px;
-      }
-    }
   </style>
 </head>
 
@@ -139,7 +115,10 @@
   <nav class="navbar bg-white border-bottom">
     <div class="container">
       <a class="navbar-brand" href="menu.html">校園小吃線上點餐</a>
-      <span class="small text-secondary">學生訂餐專區</span>
+      <div class="d-flex gap-3 align-items-center">
+        <a class="small text-decoration-none fw-semibold text-success" href="student-orders.html">我的訂單</a>
+        <span class="small text-secondary">學生訂餐專區</span>
+      </div>
     </div>
   </nav>
 
@@ -151,31 +130,24 @@
     </div>
 
     <div class="row g-4">
-      <!-- 購物車 -->
       <section class="col-lg-7" aria-labelledby="cart-title">
         <div class="card section-card">
           <div class="card-body p-3 p-md-4">
             <div class="d-flex justify-content-between align-items-center mb-3">
               <h2 id="cart-title" class="h5 fw-bold mb-0">購物車內容</h2>
-              <span class="badge rounded-pill text-bg-success" id="item-count">2 項商品</span>
+              <span class="badge rounded-pill text-bg-success" id="item-count">0 份商品</span>
             </div>
 
-            <div id="cart-list">
-              <!-- 範例商品由 JavaScript 顯示 -->
-            </div>
+            <div id="cart-list"></div>
             <div id="empty-cart" class="empty-cart d-none">
               <div class="fs-1 mb-2">🛒</div>
-              <p class="mb-0">購物車目前沒有餐點。</p>
+              <p class="mb-2">購物車目前沒有餐點。</p>
+              <a href="menu.html" class="btn btn-sm btn-outline-success">返回菜單選餐</a>
             </div>
           </div>
         </div>
-
-        <div class="alert alert-light border mt-3 small mb-0" role="note">
-          ※ 目前畫面使用範例餐點資料示範操作；正式使用時會改由菜單資料及購物車資料帶入。
-        </div>
       </section>
 
-      <!-- 結帳表單與金額 -->
       <section class="col-lg-5" aria-labelledby="checkout-title">
         <div class="card section-card mb-4">
           <div class="card-body p-3 p-md-4">
@@ -238,29 +210,27 @@
     </div>
   </main>
 
-  <!-- 訂單送出結果視窗 -->
   <div class="modal fade" id="result-modal" tabindex="-1" aria-labelledby="result-title" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content border-0 rounded-4">
         <div class="modal-body text-center p-4 p-md-5">
           <div class="display-5 mb-3" id="result-icon">✅</div>
           <h2 class="h4 fw-bold" id="result-title">訂單已送出！</h2>
-          <p class="text-secondary mb-2" id="result-message">你的訂單已成功建立。</p>
+          <p class="text-secondary mb-2" id="result-message">你的訂單已成功寫入資料庫。</p>
           <p class="mb-4">訂單編號：<strong id="order-number"></strong></p>
-          <button type="button" class="btn btn-brand px-4" data-bs-dismiss="modal">知道了</button>
+          <div class="d-flex justify-content-center gap-2">
+            <a href="student-orders.html" class="btn btn-outline-success px-3">前往查詢訂單</a>
+            <button type="button" class="btn btn-brand px-4" data-bs-dismiss="modal">知道了</button>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 若專案已有 Bootstrap JavaScript，請改用專案內的檔案路徑 -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
   <script>
-    // 範例購物車資料；正式串接時可改成從購物車或 API 取得。
-    const cartItems = JSON.parse(
-  sessionStorage.getItem("cart") || "[]"
-);
+    const API_BASE = "http://127.0.0.1:8000";
+    let cartItems = JSON.parse(sessionStorage.getItem("cart") || "[]");
 
     const cartList = document.getElementById("cart-list");
     const emptyCart = document.getElementById("empty-cart");
@@ -270,14 +240,18 @@
     const submitButton = document.getElementById("submit-order");
 
     function formatPrice(price) {
-      return "$" + price.toLocaleString("zh-TW");
+      return "$" + Number(price || 0).toLocaleString("zh-TW");
+    }
+
+    function syncCartStorage() {
+      sessionStorage.setItem("cart", JSON.stringify(cartItems));
     }
 
     function renderCart() {
       cartList.innerHTML = "";
 
-      const totalQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-      const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const totalQuantity = cartItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+      const subtotal = cartItems.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
 
       itemCount.textContent = totalQuantity + " 份商品";
       subtotalElement.textContent = formatPrice(subtotal);
@@ -289,14 +263,13 @@
 
       cartItems.forEach(item => {
         const row = document.createElement("div");
-        row.className = "cart-item d-flex align-items-center gap-3 py-3 border-bottom";
+        row.className = "cart-item d-flex align-items-center justify-content-between gap-3 py-3 border-bottom";
 
         row.innerHTML = `
-          <img class="food-thumb" src="${item.image}" alt="${item.name}">
           <div class="flex-grow-1 min-width-0">
             <div class="fw-bold">${item.name}</div>
-            <div class="small text-secondary">${item.description}</div>
-            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 item-bottom">
+            <div class="small text-secondary">單價 ${formatPrice(item.price)}</div>
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
               <div class="quantity-control" aria-label="${item.name}數量">
                 <button type="button" data-action="decrease" data-id="${item.id}" aria-label="減少數量">−</button>
                 <span class="fw-semibold">${item.quantity}</span>
@@ -317,15 +290,16 @@
       if (!button) return;
 
       const id = Number(button.dataset.id);
-      const item = cartItems.find(product => product.id === id);
+      const item = cartItems.find(product => Number(product.id) === id);
       if (!item) return;
 
       if (button.dataset.action === "increase") item.quantity += 1;
       if (button.dataset.action === "decrease") item.quantity = Math.max(1, item.quantity - 1);
       if (button.dataset.action === "remove") {
-        const index = cartItems.findIndex(product => product.id === id);
+        const index = cartItems.findIndex(product => Number(product.id) === id);
         if (index !== -1) cartItems.splice(index, 1);
       }
+      syncCartStorage();
       renderCart();
     });
 
@@ -340,71 +314,61 @@
       const form = event.currentTarget;
       if (!form.reportValidity()) return;
 
+      const studentId = document.getElementById("student-id").value.trim();
+      const studentName = document.getElementById("student-name").value.trim();
+
       const orderData = {
-        student_id: document.getElementById("student-id").value.trim(),
-        student_name: document.getElementById("student-name").value.trim(),
+        student_id: studentId,
+        student_name: studentName,
         pickup_time: document.getElementById("pickup-time").value,
         note: document.getElementById("order-note").value.trim(),
         items: cartItems.map(item => ({
-          meal_id: item.id,
-          quantity: item.quantity
+          item_id: Number(item.id),
+          quantity: Number(item.quantity)
         }))
       };
 
-      /*
-        正式串接後端時，可將下方示範區塊替換為：
-        const response = await fetch("/api/orders", {
+      submitButton.disabled = true;
+      submitButton.textContent = "送出中...";
+
+      try {
+        const response = await fetch(`${API_BASE}/orders`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(orderData)
         });
-        if (!response.ok) throw new Error("訂單送出失敗");
+
         const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.detail || result.message || "訂單送出失敗");
+        }
 
-        注意：實際 API 路徑與欄位名稱要以組員 C 提供的規格為準。
-      */
+        const createdOrderId = result.data?.order_id ?? "";
+        sessionStorage.setItem("studentId", studentId);
+        cartItems = [];
+        syncCartStorage();
+        renderCart();
 
-      console.log("準備送出的訂單資料：", orderData);
+        document.getElementById("order-number").textContent = createdOrderId;
+        document.getElementById("result-icon").textContent = "✅";
+        document.getElementById("result-title").textContent = "訂單已送出！";
+        document.getElementById("result-message").textContent =
+          `總金額 ${formatPrice(result.data?.total_price)}，已成功寫入後端資料庫。`;
 
-      // 取得學號與姓名
-const studentId = document.getElementById("student-id").value.trim();
-const studentName = document.getElementById("student-name").value.trim();
+        const modal = new bootstrap.Modal(document.getElementById("result-modal"));
+        modal.show();
+      } catch (error) {
+        document.getElementById("order-number").textContent = "—";
+        document.getElementById("result-icon").textContent = "⚠️";
+        document.getElementById("result-title").textContent = "訂單送出失敗";
+        document.getElementById("result-message").textContent = error.message;
 
-// 讀取原本的訂單
-const orders = JSON.parse(
-  localStorage.getItem("orders") || "[]"
-);
-
-// 建立新訂單
-const newOrder = {
-  orderNumber: "DEMO" + Date.now().toString().slice(-6),
-  studentId: studentId,
-  studentName: studentName,
-  items: cartItems,
-  total: cartItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  ),
-  createdAt: new Date().toISOString()
-  // 新增這兩個欄位
-  status: "待接單",
-  statusUpdatedAt: new Date().toISOString()
-};
-
-// 儲存訂單
-orders.push(newOrder);
-localStorage.setItem("orders", JSON.stringify(orders));
-
-      // 暫時使用假資料模擬成功結果，尚未真的寫入資料庫。
-      const demoOrderNumber = "DEMO" + Date.now().toString().slice(-6);
-      document.getElementById("order-number").textContent = demoOrderNumber;
-      document.getElementById("result-icon").textContent = "✅";
-      document.getElementById("result-title").textContent = "訂單已送出！";
-      document.getElementById("result-message").textContent =
-        "目前為前端展示模式，訂單資料尚未傳送至後端。";
-
-      const modal = new bootstrap.Modal(document.getElementById("result-modal"));
-      modal.show();
+        const modal = new bootstrap.Modal(document.getElementById("result-modal"));
+        modal.show();
+      } finally {
+        submitButton.disabled = cartItems.length === 0;
+        submitButton.textContent = "確認並送出訂單";
+      }
     });
 
     renderCart();

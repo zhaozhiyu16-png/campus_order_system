@@ -1,6 +1,9 @@
 from datetime import datetime
+import os
 import sqlite3
 from fastapi import FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 app = FastAPI(
@@ -9,8 +12,15 @@ app = FastAPI(
     version="1.0.0",
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# --- 資料庫初始化函式 ---
+
 def init_db():
   conn = sqlite3.connect("shop.db")
   cursor = conn.cursor()
@@ -23,6 +33,20 @@ def init_db():
             created_at TEXT
         )
     """)
+  cursor.execute("SELECT COUNT(*) FROM menu")
+  count = cursor.fetchone()[0]
+  if count == 0:
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    default_items = [
+        ("香煎雞腿便當", 100, 1, now_str),
+        ("香噴噴滷肉飯", 60, 1, now_str),
+        ("酥脆炸雞腿", 75, 1, now_str),
+        ("珍珠奶茶", 50, 1, now_str),
+    ]
+    cursor.executemany(
+        "INSERT INTO menu (name, price, is_available, created_at) VALUES (?, ?, ?, ?)",
+        default_items,
+    )
   conn.commit()
   conn.close()
 
@@ -32,14 +56,12 @@ def startup_event():
   init_db()
 
 
-# --- Pydantic 請求資料驗證模型 ---
 class MenuItemCreate(BaseModel):
   name: str
   price: int
   is_available: int = 1
 
 
-# --- 1. GET 路由：取得所有開放中的餐點 ---
 @app.get("/menus", summary="列出所有開放中的餐點與價格")
 def get_menus():
   conn = sqlite3.connect("shop.db")
@@ -51,7 +73,6 @@ def get_menus():
   return {"status": "success", "data": [dict(row) for row in rows]}
 
 
-# --- 2. POST 路由：新增餐點 ---
 @app.post(
     "/menus",
     status_code=status.HTTP_201_CREATED,
@@ -87,5 +108,12 @@ def create_menu_item(item: MenuItemCreate):
           "created_at": created_at,
       },
   }
+
+
 from orders import router as orders_router
+
 app.include_router(orders_router)
+
+# 若專案資料夾內有 html 檔，直接掛載根目錄方便從瀏覽器開啟
+base_dir = os.path.dirname(os.path.abspath(__file__))
+app.mount("/", StaticFiles(directory=base_dir, html=True), name="static")
