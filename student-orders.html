@@ -73,6 +73,16 @@
     const studentInput = document.getElementById("studentId");
     const refreshBtn = document.getElementById("refreshBtn");
 
+    function getOrderStatus(order) {
+  // 優先顯示商家手動修改的狀態
+  if (order.status) {
+    return order.status;
+  }
+
+  // 沒有狀態資料時，預設為待接單
+  return "待接單";
+}
+
     function statusClass(status) {
       if (status === "待接單" || status === "製作中") return "status-making";
       if (status === "可取餐") return "status-ready";
