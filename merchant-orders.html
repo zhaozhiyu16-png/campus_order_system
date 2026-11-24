@@ -79,7 +79,7 @@ $("toProcessing").onclick=()=>change(id,"製作中");$("toReady").onclick=()=>ch
 }
 function change(id,status){let o=orders.find(x=>x.id===id);if(!o||o.status==="已取消")return;o.status=status;open(id);counts();}
 $("tabs").onclick=e=>{let b=e.target.closest("[data-filter]");if(!b)return;filter=b.dataset.filter;document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));render();};
-$("search").oninput=render;$("refresh").onclick=render;
+$("search").oninput=render;$("refresh").onclick=() => { orders = loadOrders();render();};
 $("back").onclick=()=>{$("detailView").style.display="none";$("listView").style.display="block";render();};
 render();
 </script>
