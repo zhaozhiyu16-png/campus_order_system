@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>商家訂單管理</title>
+<style>
+:root{--green:#287a55;--bg:#f5f7f5;--line:#e5ebe6;--muted:#78847c;--red:#d83b3b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#26332c;font-family:"Microsoft JhengHei",system-ui,sans-serif}button,input{font:inherit;cursor:pointer}
+.page{max-width:1000px;margin:auto;padding:30px 18px 50px}.top{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:22px}h1{font-size:27px;margin:0}.sub{color:var(--muted);font-size:14px;margin:7px 0 0}
+button{border:1px solid var(--line);background:white;border-radius:10px;padding:10px 15px;color:#26332c}button:hover{filter:brightness(.97)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}.stat,.order,.detail{background:white;border:1px solid var(--line);border-radius:14px;padding:17px}.stat small,.meta{color:var(--muted)}.num{font-size:26px;font-weight:bold;margin-top:5px}
+.toolbar{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}.tabs{display:flex;gap:7px;flex-wrap:wrap}.tab.active{background:var(--green);color:white;border-color:var(--green)}input{border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:240px}
+#orders{display:grid;gap:11px}.order{display:flex;justify-content:space-between;align-items:center;gap:15px}.order:not(.cancelled){cursor:pointer}.order:not(.cancelled):hover{border-color:#a9c8b3}.heading{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.oid{font-weight:bold}.meta{font-size:13px;margin-top:8px;display:flex;gap:14px;flex-wrap:wrap}.foods{font-size:14px;margin-top:9px}.total{font-weight:bold;white-space:nowrap}
+.status{font-size:12px;font-weight:bold;border-radius:30px;padding:5px 10px}.pending{background:#fff4d9;color:#946200}.processing{background:#e5f0ff;color:#245b9b}.ready{background:#e2f5e9;color:#237044}.cancelled-tag{background:#ffe8e8;color:var(--red)}
+.cancelled .oid,.cancelled .foods,.cancelled .total{color:#b17d7d}.empty{text-align:center;background:white;padding:42px;border:1px dashed var(--line);border-radius:14px;color:var(--muted)}
+#detailView{display:none}.detail{margin-top:15px;padding:23px}.back{margin-bottom:2px}.detail h2{margin:0 0 8px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:15px;margin:23px 0}.field{border-bottom:1px solid var(--line);padding-bottom:10px}.field small{display:block;color:var(--muted);margin-bottom:5px}.foodbox{background:#f6faf7;border-radius:10px;padding:14px;line-height:1.9}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.action{background:var(--green);color:white;border:0;font-weight:bold}.action.blue{background:#3975b9}.action:disabled{opacity:.45;cursor:not-allowed}.note{margin-top:16px;padding:12px;background:#f3f7f4;color:var(--muted);font-size:13px;line-height:1.6;border-radius:9px}
+@media(max-width:620px){.page{padding:20px 12px}.stats{grid-template-columns:repeat(2,1fr)}h1{font-size:22px}.order{align-items:flex-start;flex-wrap:wrap}.total{width:100%}.grid{grid-template-columns:1fr}.top{align-items:flex-start}}
+</style>
+</head>
+<body>
+<main class="page">
+<section id="listView">
+<header class="top"><div><h1>商家訂單管理</h1><p class="sub">查看訂單內容，並更新餐點製作進度</p></div><button id="refresh">↻ 重新整理</button></header>
+<div class="stats">
+<div class="stat"><small>全部訂單</small><div class="num" id="allCount">0</div></div>
+<div class="stat"><small>待接單</small><div class="num" id="pendingCount">0</div></div>
+<div class="stat"><small>製作中</small><div class="num" id="processingCount">0</div></div>
+<div class="stat"><small>可取餐</small><div class="num" id="readyCount">0</div></div>
+</div>
+<div class="toolbar"><div class="tabs" id="tabs">
+<button class="tab active" data-filter="全部">全部</button><button class="tab" data-filter="待接單">待接單</button><button class="tab" data-filter="製作中">製作中</button><button class="tab" data-filter="可取餐">可取餐</button><button class="tab" data-filter="已取消">已取消</button>
+</div><input id="search" placeholder="搜尋學號或訂單編號"></div>
+<div id="orders"></div>
+<p class="note">目前是前端展示版本，使用範例訂單資料。尚未連接後端資料庫，因此不會讀取 checkout 真正送出的訂單。</p>
+</section>
+<section id="detailView"><button class="back" id="back">← 返回訂單列表</button><div class="detail" id="detail"></div></section>
+</main>
+<script>
+/* 展示用範例資料；日後可將這裡改成從後端 API 取得訂單。 */
+let orders=[
+{id:"ORD-20261124-001",studentId:"41101234",items:[{name:"雞腿便當",qty:1},{name:"無糖紅茶",qty:1}],total:105,status:"待接單",time:"2026-11-24 11:32"},
+{id:"ORD-20261124-002",studentId:"41105678",items:[{name:"咖哩豬排飯",qty:1}],total:100,status:"製作中",time:"2026-11-24 11:35"},
+{id:"ORD-20261124-003",studentId:"41109876",items:[{name:"日式烏龍麵",qty:1},{name:"冬瓜茶",qty:2}],total:125,status:"可取餐",time:"2026-11-24 11:38"},
+{id:"ORD-20261124-004",studentId:"41104321",items:[{name:"招牌炒飯",qty:1}],total:85,status:"已取消",time:"2026-11-24 11:40"}
+];
+let filter="全部";
+const $=id=>document.getElementById(id);
+const classes={"待接單":"pending","製作中":"processing","可取餐":"ready","已取消":"cancelled-tag"};
+function safe(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function counts(){
+$("allCount").textContent=orders.length;
+$("pendingCount").textContent=orders.filter(o=>o.status==="待接單").length;
+$("processingCount").textContent=orders.filter(o=>o.status==="製作中").length;
+$("readyCount").textContent=orders.filter(o=>o.status==="可取餐").length;
+}
+function render(){
+counts();let q=$("search").value.trim().toLowerCase();
+let rows=orders.filter(o=>(filter==="全部"||o.status===filter)&&(o.id.toLowerCase().includes(q)||o.studentId.toLowerCase().includes(q)));
+$("orders").innerHTML=rows.length?rows.map(o=>`
+<article class="order ${o.status==="已取消"?"cancelled":""}" ${o.status==="已取消"?"":`data-id="${safe(o.id)}" tabindex="0"`}>
+<div><div class="heading"><span class="oid">${safe(o.id)}</span><span class="status ${classes[o.status]}">${safe(o.status)}</span></div>
+<div class="meta"><span>學號：${safe(o.studentId)}</span><span>時間：${safe(o.time)}</span></div>
+<div class="foods">${o.items.map(i=>`${safe(i.name)} × ${Number(i.qty)}`).join("、")}</div></div>
+<div class="total">NT$ ${Number(o.total).toLocaleString("zh-TW")}</div></article>`).join(""):'<div class="empty">目前沒有符合條件的訂單</div>';
+document.querySelectorAll("[data-id]").forEach(el=>{el.onclick=()=>open(el.dataset.id);el.onkeydown=e=>{if(e.key==="Enter")open(el.dataset.id)};});
+}
+function open(id){
+let o=orders.find(x=>x.id===id);if(!o||o.status==="已取消")return;
+$("listView").style.display="none";$("detailView").style.display="block";
+$("detail").innerHTML=`<h2>訂單詳細資料</h2><div class="meta">訂單編號：${safe(o.id)}</div>
+<div style="margin-top:12px"><span class="status ${classes[o.status]}">${safe(o.status)}</span></div>
+<div class="grid"><div class="field"><small>學生學號</small><strong>${safe(o.studentId)}</strong></div><div class="field"><small>訂單時間</small><strong>${safe(o.time)}</strong></div><div class="field"><small>訂單金額</small><strong>NT$ ${Number(o.total).toLocaleString("zh-TW")}</strong></div><div class="field"><small>目前進度</small><strong>${safe(o.status)}</strong></div></div>
+<h3>餐點內容</h3><div class="foodbox">${o.items.map(i=>`${safe(i.name)} × ${Number(i.qty)}`).join("<br>")}</div>
+<h3>更新訂單狀態</h3><div class="actions"><button class="action" id="toProcessing">設為製作中</button><button class="action blue" id="toReady">設為可取餐</button></div>
+<div class="note">選擇狀態後會立即更新此展示頁面的訂單資料；目前尚未寫入後端資料庫。</div>`;
+$("toProcessing").disabled=o.status==="製作中";$("toReady").disabled=o.status==="可取餐";
+$("toProcessing").onclick=()=>change(id,"製作中");$("toReady").onclick=()=>change(id,"可取餐");
+}
+function change(id,status){let o=orders.find(x=>x.id===id);if(!o||o.status==="已取消")return;o.status=status;open(id);counts();}
+$("tabs").onclick=e=>{let b=e.target.closest("[data-filter]");if(!b)return;filter=b.dataset.filter;document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));render();};
+$("search").oninput=render;$("refresh").onclick=render;
+$("back").onclick=()=>{$("detailView").style.display="none";$("listView").style.display="block";render();};
+render();
+</script>
+</body>
+</html>
