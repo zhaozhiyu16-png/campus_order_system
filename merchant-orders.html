@@ -131,7 +131,7 @@ async function change(id, status) {
     );
 
     const updatedOrders = savedOrders.map(order => {
-      if (String(order.orderNumber) === id) {
+      if (String(order.order_id) === String(orderId)) {
         return { ...order, status: status };
       }
       return order;
