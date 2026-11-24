@@ -96,11 +96,10 @@ async function change(id, status) {
   // 防止修改不存在或已取消的訂單
   if (!o || o.status === "已取消") return;
 
-  // 優先使用 id，沒有才使用 order_id
-  const orderId = o.id ?? o.order_id ?? o.dbId;
+  // 取得資料庫訂單 ID
+  const orderId = o.id;
 
-  // 確認有資料庫訂單 ID
-  if (orderId == null || orderId === "") {
+  if (!orderId) {
     alert("找不到資料庫訂單 ID，無法更新後端。");
     return;
   }
