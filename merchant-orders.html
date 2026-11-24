@@ -90,7 +90,61 @@ $("detail").innerHTML=`<h2>訂單詳細資料</h2><div class="meta">訂單編號
 $("toProcessing").disabled=o.status==="製作中";$("toReady").disabled=o.status==="可取餐";
 $("toProcessing").onclick=()=>change(id,"製作中");$("toReady").onclick=()=>change(id,"可取餐");
 }
-function change(id,status){let o=orders.find(x=>x.id===id);if(!o||o.status==="已取消")return;o.status=status;open(id);counts();}
+async function change(id, status) {
+  const o = orders.find(x => x.id === id);
+
+  // 防止修改不存在或已取消的訂單
+  if (!o || o.status === "已取消") return;
+
+  // 確認有資料庫訂單 ID
+  if (!o.dbId) {
+    alert("找不到資料庫訂單 ID，無法更新後端。");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_BASE}/orders/${o.dbId}/status`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          status: status
+        })
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`更新失敗，HTTP 狀態碼：${response.status}`);
+    }
+
+    // 後端成功後才更新前端畫面
+    o.status = status;
+
+    // 同步更新目前瀏覽器的 localStorage
+    const savedOrders = JSON.parse(
+      localStorage.getItem("orders") || "[]"
+    );
+
+    const updatedOrders = savedOrders.map(order => {
+      if (String(order.orderNumber) === id) {
+        return { ...order, status: status };
+      }
+      return order;
+    });
+
+    localStorage.setItem("orders", JSON.stringify(updatedOrders));
+
+    open(id);
+    counts();
+
+    alert("訂單狀態更新成功！");
+  } catch (error) {
+    alert("更新訂單失敗：" + error.message);
+  }
+}
 $("tabs").onclick=e=>{let b=e.target.closest("[data-filter]");if(!b)return;filter=b.dataset.filter;document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));render();};
 $("search").oninput=render;$("refresh").onclick=() => { orders = loadOrders();render();};
 $("back").onclick=()=>{$("detailView").style.display="none";$("listView").style.display="block";render();};
