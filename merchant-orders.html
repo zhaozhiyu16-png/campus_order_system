@@ -43,7 +43,7 @@ function loadOrders() {
   const savedOrders = JSON.parse(localStorage.getItem("orders") || "[]");
 
   return savedOrders.map(order => ({
-    id: String(order.orderNumber),
+    id: String(order.order_id),
     studentId: order.studentId,
     items: (order.items || []).map(item => ({
       name: item.name,
