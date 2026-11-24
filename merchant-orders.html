@@ -37,6 +37,7 @@ button{border:1px solid var(--line);background:white;border-radius:10px;padding:
 <section id="detailView"><button class="back" id="back">← 返回訂單列表</button><div class="detail" id="detail"></div></section>
 </main>
 <script>
+const API_BASE = "http://127.0.0.1:8000";
 // 從 checkout 共用的 localStorage 讀取訂單
 function loadOrders() {
   const savedOrders = JSON.parse(localStorage.getItem("orders") || "[]");
