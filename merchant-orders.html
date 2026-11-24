@@ -37,13 +37,25 @@ button{border:1px solid var(--line);background:white;border-radius:10px;padding:
 <section id="detailView"><button class="back" id="back">← 返回訂單列表</button><div class="detail" id="detail"></div></section>
 </main>
 <script>
-/* 展示用範例資料；日後可將這裡改成從後端 API 取得訂單。 */
-let orders=[
-{id:"ORD-20261124-001",studentId:"41101234",items:[{name:"雞腿便當",qty:1},{name:"無糖紅茶",qty:1}],total:105,status:"待接單",time:"2026-11-24 11:32"},
-{id:"ORD-20261124-002",studentId:"41105678",items:[{name:"咖哩豬排飯",qty:1}],total:100,status:"製作中",time:"2026-11-24 11:35"},
-{id:"ORD-20261124-003",studentId:"41109876",items:[{name:"日式烏龍麵",qty:1},{name:"冬瓜茶",qty:2}],total:125,status:"可取餐",time:"2026-11-24 11:38"},
-{id:"ORD-20261124-004",studentId:"41104321",items:[{name:"招牌炒飯",qty:1}],total:85,status:"已取消",time:"2026-11-24 11:40"}
-];
+// 從 checkout 共用的 localStorage 讀取訂單
+function loadOrders() {
+  const savedOrders = JSON.parse(localStorage.getItem("orders") || "[]");
+
+  return savedOrders.map(order => ({
+    id: String(order.orderNumber),
+    studentId: order.studentId,
+    items: (order.items || []).map(item => ({
+      name: item.name,
+      qty: item.quantity
+    })),
+    total: order.total,
+    status: order.status || "待接單",
+    time: order.createdAt || "未提供"
+  }));
+}
+
+let orders = loadOrders();
+  
 let filter="全部";
 const $=id=>document.getElementById(id);
 const classes={"待接單":"pending","製作中":"processing","可取餐":"ready","已取消":"cancelled-tag"};
