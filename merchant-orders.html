@@ -106,7 +106,7 @@ async function change(id, status) {
 
   try {
     const response = await fetch(
-      `${API_BASE}/orders/${o.dbId}/status`,
+      `${API_BASE}/orders/${o.orderId}/status`,
       {
         method: "PATCH",
         headers: {
