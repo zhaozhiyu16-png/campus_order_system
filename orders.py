@@ -34,6 +34,17 @@ def ensure_orders_table(conn: sqlite3.Connection):
             created_at TEXT NOT NULL
         )
     """)
+
+    python -m uvicorn main:app --reloadcursor.execute("""
+        CREATE TABLE IF NOT EXISTS order_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL,
+            item_id INTEGER NOT NULL,
+            quantity INTEGER NOT NULL,
+            price INTEGER NOT NULL
+        )
+    """)
+    
     cursor.execute("PRAGMA table_info(orders)")
     columns = {row["name"] for row in cursor.fetchall()}
     if "status" not in columns:
