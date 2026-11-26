@@ -16,6 +16,8 @@ button{border:1px solid var(--line);background:white;border-radius:10px;padding:
 .cancelled .oid,.cancelled .foods,.cancelled .total{color:#b17d7d}.empty{text-align:center;background:white;padding:42px;border:1px dashed var(--line);border-radius:14px;color:var(--muted)}
 #detailView{display:none}.detail{margin-top:15px;padding:23px}.back{margin-bottom:2px}.detail h2{margin:0 0 8px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:15px;margin:23px 0}.field{border-bottom:1px solid var(--line);padding-bottom:10px}.field small{display:block;color:var(--muted);margin-bottom:5px}.foodbox{background:#f6faf7;border-radius:10px;padding:14px;line-height:1.9}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.action{background:var(--green);color:white;border:0;font-weight:bold}.action.blue{background:#3975b9}.action:disabled{opacity:.45;cursor:not-allowed}.note{margin-top:16px;padding:12px;background:#f3f7f4;color:var(--muted);font-size:13px;line-height:1.6;border-radius:9px}
 @media(max-width:620px){.page{padding:20px 12px}.stats{grid-template-columns:repeat(2,1fr)}h1{font-size:22px}.order{align-items:flex-start;flex-wrap:wrap}.total{width:100%}.grid{grid-template-columns:1fr}.top{align-items:flex-start}}
+.action.selected{outline:3px solid #1b4332;outline-offset:2px;box-shadow:0 0 0 3px rgba(40,122,85,.25)}
+.action.blue.selected{outline-color:#1d4ed8;box-shadow:0 0 0 3px rgba(57,117,185,.28)}
 </style>
 </head>
 <body>
@@ -40,16 +42,21 @@ button{border:1px solid var(--line);background:white;border-radius:10px;padding:
 const API_BASE = "http://127.0.0.1:8000";
 // 從 checkout 共用的 localStorage 讀取訂單
 function loadOrders() {
-  const savedOrders = JSON.parse(localStorage.getItem("orders") || "[]");
+  const savedOrders = JSON.parse(
+    localStorage.getItem("orders") || "[]"
+  );
 
   return savedOrders.map(order => ({
-    id: String(order.order_id),
-    studentId: order.studentId,
+    id: String(
+      order.orderNumber ?? order.order_id ?? order.id ?? ""
+    ),
+    orderId: order.order_id ?? null,
+    studentId: String(order.studentId ?? ""),
     items: (order.items || []).map(item => ({
       name: item.name,
-      qty: item.quantity
+      qty: item.quantity ?? item.qty ?? 0
     })),
-    total: order.total,
+    total: order.total ?? 0,
     status: order.status || "待接單",
     time: order.createdAt || "未提供"
   }));
@@ -72,7 +79,10 @@ counts();let q=$("search").value.trim().toLowerCase();
 let rows=orders.filter(o=>(filter==="全部"||o.status===filter)&&(o.id.toLowerCase().includes(q)||o.studentId.toLowerCase().includes(q)));
 $("orders").innerHTML=rows.length?rows.map(o=>`
 <article class="order ${o.status==="已取消"?"cancelled":""}" ${o.status==="已取消"?"":`data-id="${safe(o.id)}" tabindex="0"`}>
-<div><div class="heading"><span class="oid">${safe(o.id)}</span><span class="status ${classes[o.status]}">${safe(o.status)}</span></div>
+<div><div class="heading">
+  <span class="oid">訂單編號：${safe(o.id)}</span>
+  <span class="status ${classes[o.status]}">${safe(o.status)}</span>
+</div>
 <div class="meta"><span>學號：${safe(o.studentId)}</span><span>時間：${safe(o.time)}</span></div>
 <div class="foods">${o.items.map(i=>`${safe(i.name)} × ${Number(i.qty)}`).join("、")}</div></div>
 <div class="total">NT$ ${Number(o.total).toLocaleString("zh-TW")}</div></article>`).join(""):'<div class="empty">目前沒有符合條件的訂單</div>';
@@ -81,7 +91,11 @@ document.querySelectorAll("[data-id]").forEach(el=>{el.onclick=()=>open(el.datas
 function open(id){
 let o=orders.find(x=>x.id===id);if(!o||o.status==="已取消")return;
 $("listView").style.display="none";$("detailView").style.display="block";
-$("detail").innerHTML=`<h2>訂單詳細資料</h2><div class="meta">訂單編號：${safe(o.id)}</div>
+$("detail").innerHTML=`<h2>訂單詳細資料</h2>
+<div class="field" style="margin-top:15px">
+  <small>訂單編號</small>
+  <strong>${safe(o.id)}</strong>
+</div>
 <div style="margin-top:12px"><span class="status ${classes[o.status]}">${safe(o.status)}</span></div>
 <div class="grid"><div class="field"><small>學生學號</small><strong>${safe(o.studentId)}</strong></div><div class="field"><small>訂單時間</small><strong>${safe(o.time)}</strong></div><div class="field"><small>訂單金額</small><strong>NT$ ${Number(o.total).toLocaleString("zh-TW")}</strong></div><div class="field"><small>目前進度</small><strong>${safe(o.status)}</strong></div></div>
 <h3>餐點內容</h3><div class="foodbox">${o.items.map(i=>`${safe(i.name)} × ${Number(i.qty)}`).join("<br>")}</div>
@@ -89,6 +103,8 @@ $("detail").innerHTML=`<h2>訂單詳細資料</h2><div class="meta">訂單編號
 <div class="note">選擇狀態後會立即更新此展示頁面的訂單資料；目前尚未寫入後端資料庫。</div>`;
 $("toProcessing").disabled=o.status==="製作中";$("toReady").disabled=o.status==="可取餐";
 $("toProcessing").onclick=()=>change(id,"製作中");$("toReady").onclick=()=>change(id,"可取餐");
+
+$("toProcessing").classList.toggle("selected", o.status === "製作中");$("toReady").classList.toggle("selected", o.status === "可取餐");
 }
 async function change(id, status) {
   const o = orders.find(x => x.id === id);
@@ -97,24 +113,22 @@ async function change(id, status) {
   if (!o || o.status === "已取消") return;
 
   // 取得資料庫訂單 ID
-  const orderId = o.id;
+  const dbOrderId = Number(o.orderId);
 
-  if (!orderId) {
+  if (!dbOrderId) {
     alert("找不到資料庫訂單 ID，無法更新後端。");
     return;
   }
 
   try {
     const response = await fetch(
-      `${API_BASE}/orders/${o.orderId}/status`,
+      `${API_BASE}/orders/${dbOrderId}/status`,
       {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          status: status
-        })
+        body: JSON.stringify({status: status})
       }
     );
 
@@ -125,28 +139,71 @@ async function change(id, status) {
     // 後端成功後才更新前端畫面
     o.status = status;
 
-    // 同步更新目前瀏覽器的 localStorage
-    const savedOrders = JSON.parse(
-      localStorage.getItem("orders") || "[]"
-    );
+    // 2. 同步更新 localStorage（獨立 try-catch，避免儲存失敗影響畫面更新）
+    try {
+      const savedOrders = JSON.parse(localStorage.getItem("orders") || "[]");
+      let foundInStorage = false; // 修正：補上變數宣告
 
-    const updatedOrders = savedOrders.map(order => {
-      if (String(order.order_id) === String(orderId)) {
-        return { ...order, status: status };
-      }
-      return order;
-    });
+      const updatedOrders = savedOrders.map(order => {
+        const matchByDbId = order.order_id !== undefined && Number(order.order_id) === dbOrderId;
+        const matchByDisplayId = String(order.orderNumber ?? order.id ?? "") === String(id);
 
-    localStorage.setItem("orders", JSON.stringify(updatedOrders));
+        if (matchByDbId || matchByDisplayId) {
+          foundInStorage = true; // 找到時標記為 true
+          return { ...order, status: status };
+        }
+        return order;
+      });
 
+      // 若 localStorage 原本沒有這筆訂單，補一筆最新狀態進去，確保刷新後可保留
+  if (!foundInStorage) {
+    updatedOrders.push({
+      order_id: dbOrderId,
+      orderNumber: o.id,
+      studentId: o.studentId,
+      items: o.items.map(i => ({ name: i.name, quantity: i.qty })),
+      total: o.total,
+      status: status,
+      createdAt: o.time
+    });}
+
+localStorage.setItem("orders", JSON.stringify(updatedOrders));
+    } catch (storageError) {
+      console.warn("localStorage 更新失敗，但不影響本次操作：", storageError);
+    }
+
+    // 3. 更新前端畫面與提示
     open(id);
     counts();
-
     alert("訂單狀態更新成功！");
+
   } catch (error) {
     alert("更新訂單失敗：" + error.message);
   }
 }
+
+async function syncOrders() {
+  try {
+    // 1. 嘗試向後端 API 取得最新訂單
+    const response = await fetch("${API_BASE}/orders/${dbOrderId}/status"); // 請替換為你的 API 網址
+    if (!response.ok) throw new Error("API 請求失敗");
+
+    const serverOrders = await response.json();
+    const normalized = normalizeOrders(serverOrders);
+
+    // 2. 同步更新目前瀏覽器的 localStorage（用最新資料覆蓋）
+    localStorage.setItem("orders", JSON.stringify(normalized));
+
+    return normalized; // 回傳最新資料供畫面渲染
+  } catch (error) {
+    console.warn("無法連線至後端，改為讀取本機快取資料:", error);
+
+    // 3. 若 API 失敗，則讀取 localStorage 裡的舊資料作為備援
+    const savedOrders = JSON.parse(localStorage.getItem("orders") || "[]");
+    return savedOrders;
+  }
+}
+
 $("tabs").onclick=e=>{let b=e.target.closest("[data-filter]");if(!b)return;filter=b.dataset.filter;document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));render();};
 $("search").oninput=render;$("refresh").onclick=() => { orders = loadOrders();render();};
 $("back").onclick=()=>{$("detailView").style.display="none";$("listView").style.display="block";render();};
