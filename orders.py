@@ -21,9 +21,32 @@ class OrderStatusUpdate(BaseModel):
     status: AllowedOrderStatus
     estimated_completion_time: Optional[str] = None
 
+def ensure_orders_table(conn: sqlite3.Connection):
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id TEXT NOT NULL,
+            customer_name TEXT NOT NULL,
+            total_price INTEGER NOT NULL,
+            status TEXT DEFAULT '製作中',
+            estimated_completion_time TEXT,
+            created_at TEXT NOT NULL
+        )
+    """)
+    cursor.execute("PRAGMA table_info(orders)")
+    columns = {row["name"] for row in cursor.fetchall()}
+    if "status" not in columns:
+        cursor.execute("ALTER TABLE orders ADD COLUMN status TEXT DEFAULT '製作中'")
+    if "estimated_completion_time" not in columns:
+        cursor.execute("ALTER TABLE orders ADD COLUMN estimated_completion_time TEXT")
+    conn.commit()
+
+
 def get_db_connection():
     conn = sqlite3.connect("shop.db")
     conn.row_factory = sqlite3.Row
+    ensure_orders_table(conn)
     return conn
 
 @router.post("", status_code=status.HTTP_201_CREATED, summary="提交訂單與購物車結帳")
