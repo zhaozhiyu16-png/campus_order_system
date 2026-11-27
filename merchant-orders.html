@@ -40,163 +40,339 @@ button{border:1px solid var(--line);background:white;border-radius:10px;padding:
 </main>
 <script>
 const API_BASE = "http://127.0.0.1:8000";
-// 目前先從 localStorage 載入訂單。
-// 等後端提供 GET 訂單列表 API 後，再把資料來源改成後端回傳內容。
-function normalizeOrders(sourceOrders) {
-  return (Array.isArray(sourceOrders) ? sourceOrders : []).map(order => {
-    // order_id 是優先使用的資料庫 ID；若後端欄位叫 id，也能接收數字 ID。
-    // orderNumber（例如 DEMO025640）只作為畫面顯示編號，不當作資料庫 ID。
-    const rawDbId = order.order_id ?? order.id ?? null;
-    const parsedDbId = Number(rawDbId);
-    const dbOrderId =
-      rawDbId !== null && rawDbId !== "" &&
-      Number.isInteger(parsedDbId) && parsedDbId > 0
-        ? parsedDbId
-        : null;
+
+let orders = [];
+let filter = "全部";
+
+const $ = id => document.getElementById(id);
+
+const classes = {
+  "待接單": "pending",
+  "製作中": "processing",
+  "可取餐": "ready",
+  "已取消": "cancelled-tag"
+};
+
+function safe(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[c]));
+}
+
+// 將後端資料轉換成網頁需要的格式
+function normalizeOrders(result) {
+  const list = Array.isArray(result)
+    ? result
+    : result.data ?? result.orders ?? [];
+
+  return list.map(order => {
+    const items = order.items ?? order.order_items ?? [];
 
     return {
-      id: String(order.orderNumber ?? order.display_order_number ??
-        (dbOrderId !== null ? `訂單 #${dbOrderId}` : "未提供編號")),
-      orderId: dbOrderId,
-      studentId: String(order.studentId ?? order.student_id ?? ""),
-      studentName: String(order.studentName ?? order.customer_name ?? ""),
-      items: (order.items || order.order_items || []).map(item => ({
-        name: item.name ?? item.item_name ?? "未命名餐點",
-        qty: item.quantity ?? item.qty ?? 0
+      // 顯示用訂單編號
+      id: String(
+        order.order_number ??
+        order.orderNumber ??
+        order.order_id ??
+        order.id ??
+        ""
+      ),
+
+      // 真正用來 PATCH 的資料庫主鍵
+      orderId: Number(order.order_id ?? order.id),
+
+      studentId: String(
+        order.student_id ??
+        order.studentId ??
+        ""
+      ),
+
+      studentName: String(
+        order.customer_name ??
+        order.student_name ??
+        order.studentName ??
+        ""
+      ),
+
+      items: items.map(item => ({
+        name: String(
+          item.name ??
+          item.item_name ??
+          item.menu_name ??
+          "餐點"
+        ),
+        qty: Number(
+          item.quantity ??
+          item.qty ??
+          0
+        )
       })),
-      total: order.total ?? order.total_price ?? 0,
-      status: order.status || "待接單",
-      time: order.createdAt ?? order.created_at ?? "未提供"
+
+      total: Number(
+        order.total_price ??
+        order.total ??
+        0
+      ),
+
+      status: order.status ?? "待接單",
+
+      time: order.created_at ??
+        order.createdAt ??
+        "未提供"
     };
   });
 }
 
-function loadOrders() {
-  const savedOrders = JSON.parse(localStorage.getItem("orders") || "[]");
-  return normalizeOrders(savedOrders);
+// 從後端 shop.db 取得訂單
+async function syncOrders() {
+  try {
+    const response = await fetch(`${API_BASE}/orders/merchant`);
+
+    if (!response.ok) {
+      throw new Error(`讀取訂單失敗：HTTP ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    orders = normalizeOrders(result);
+
+    render();
+
+  } catch (error) {
+    console.error(error);
+    $("orders").innerHTML =
+      `<div class="empty">無法讀取後端訂單：${safe(error.message)}</div>`;
+  }
 }
 
-let orders = loadOrders();
-  
-let filter="全部";
-const $=id=>document.getElementById(id);
-const classes={"待接單":"pending","製作中":"processing","可取餐":"ready","已取消":"cancelled-tag"};
-function safe(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-function counts(){
-$("allCount").textContent=orders.length;
-$("pendingCount").textContent=orders.filter(o=>o.status==="待接單").length;
-$("processingCount").textContent=orders.filter(o=>o.status==="製作中").length;
-$("readyCount").textContent=orders.filter(o=>o.status==="可取餐").length;
-}
-function render(){
-counts();let q=$("search").value.trim().toLowerCase();
-let rows=orders.filter(o=>(filter==="全部"||o.status===filter)&&(o.id.toLowerCase().includes(q)||o.studentId.toLowerCase().includes(q)));
-$("orders").innerHTML=rows.length?rows.map(o=>`
-<article class="order ${o.status==="已取消"?"cancelled":""}" ${o.status==="已取消"?"":`data-id="${safe(o.id)}" tabindex="0"`}>
-<div><div class="heading">
-  <span class="oid">訂單編號：${safe(o.id)}</span>
-  <span class="status ${classes[o.status]}">${safe(o.status)}</span>
-</div>
-<div class="meta"><span>學號：${safe(o.studentId)}</span><span>時間：${safe(o.time)}</span></div>
-<div class="foods">${o.items.map(i=>`${safe(i.name)} × ${Number(i.qty)}`).join("、")}</div></div>
-<div class="total">NT$ ${Number(o.total).toLocaleString("zh-TW")}</div></article>`).join(""):'<div class="empty">目前沒有符合條件的訂單</div>';
-document.querySelectorAll("[data-id]").forEach(el=>{el.onclick=()=>open(el.dataset.id);el.onkeydown=e=>{if(e.key==="Enter")open(el.dataset.id)};});
-}
-function open(id){
-let o=orders.find(x=>x.id===id);if(!o||o.status==="已取消")return;
-$("listView").style.display="none";$("detailView").style.display="block";
-$("detail").innerHTML=`<h2>訂單詳細資料</h2>
-<div class="field" style="margin-top:15px">
-  <small>訂單編號</small>
-  <strong>${safe(o.id)}</strong>
-</div>
-<div style="margin-top:12px"><span class="status ${classes[o.status]}">${safe(o.status)}</span></div>
-<div class="grid"><div class="field"><small>學生學號</small><strong>${safe(o.studentId)}</strong></div><div class="field"><small>訂單時間</small><strong>${safe(o.time)}</strong></div><div class="field"><small>訂單金額</small><strong>NT$ ${Number(o.total).toLocaleString("zh-TW")}</strong></div><div class="field"><small>目前進度</small><strong>${safe(o.status)}</strong></div></div>
-<h3>餐點內容</h3><div class="foodbox">${o.items.map(i=>`${safe(i.name)} × ${Number(i.qty)}`).join("<br>")}</div>
-<h3>更新訂單狀態</h3><div class="actions"><button class="action" id="toProcessing">設為製作中</button><button class="action blue" id="toReady">設為可取餐</button></div>
-<div class="note">選擇狀態後會立即更新此展示頁面的訂單資料；目前尚未寫入後端資料庫。</div>`;
-$("toProcessing").disabled=o.status==="製作中";$("toReady").disabled=o.status==="可取餐";
-$("toProcessing").onclick=()=>change(o,"製作中");$("toReady").onclick=()=>change(o,"可取餐");
+function counts() {
+  $("allCount").textContent = orders.length;
 
-$("toProcessing").classList.toggle("selected", o.status === "製作中");$("toReady").classList.toggle("selected", o.status === "可取餐");
+  $("pendingCount").textContent =
+    orders.filter(o => o.status === "待接單").length;
+
+  $("processingCount").textContent =
+    orders.filter(o => o.status === "製作中").length;
+
+  $("readyCount").textContent =
+    orders.filter(o => o.status === "可取餐").length;
 }
-async function change(order, status) {
-  // 按鈕事件直接傳入目前這筆訂單物件。
-  if (!order || order.status === "已取消") return;
 
-  const dbOrderId = order.orderId;
+function render() {
+  counts();
 
-  if (!Number.isInteger(dbOrderId) || dbOrderId <= 0) {
-    alert("這筆訂單沒有資料庫 ID，無法更新後端。請確認訂單資料是否包含 order_id 或數字 id。");
+  const q = $("search").value.trim().toLowerCase();
+
+  const rows = orders.filter(o =>
+    (filter === "全部" || o.status === filter) &&
+    (o.id.toLowerCase().includes(q) ||
+     o.studentId.toLowerCase().includes(q))
+  );
+
+  $("orders").innerHTML = rows.length
+    ? rows.map(o => `
+      <article class="order ${o.status === "已取消" ? "cancelled" : ""}"
+        ${o.status === "已取消" ? "" : `data-id="${safe(o.id)}" tabindex="0"`}>
+
+        <div>
+          <div class="heading">
+            <span class="oid">訂單編號：${safe(o.id)}</span>
+            <span class="status ${classes[o.status] ?? ""}">
+              ${safe(o.status)}
+            </span>
+          </div>
+
+          <div class="meta">
+            <span>學號：${safe(o.studentId)}</span>
+            <span>時間：${safe(o.time)}</span>
+          </div>
+
+          <div class="foods">
+            ${o.items.map(i =>
+              `${safe(i.name)} × ${i.qty}`
+            ).join("、")}
+          </div>
+        </div>
+
+        <div class="total">
+          NT$ ${o.total.toLocaleString("zh-TW")}
+        </div>
+      </article>
+    `).join("")
+    : '<div class="empty">目前沒有符合條件的訂單</div>';
+
+  document.querySelectorAll("[data-id]").forEach(el => {
+    el.onclick = () => open(el.dataset.id);
+    el.onkeydown = e => {
+      if (e.key === "Enter") open(el.dataset.id);
+    };
+  });
+}
+
+function open(id) {
+  const o = orders.find(x => x.id === id);
+
+  if (!o || o.status === "已取消") return;
+
+  $("listView").style.display = "none";
+  $("detailView").style.display = "block";
+
+  $("detail").innerHTML = `
+    <h2>訂單詳細資料</h2>
+
+    <div class="field" style="margin-top:15px">
+      <small>訂單編號</small>
+      <strong>${safe(o.id)}</strong>
+    </div>
+
+    <div style="margin-top:12px">
+      <span class="status ${classes[o.status] ?? ""}">
+        ${safe(o.status)}
+      </span>
+    </div>
+
+    <div class="grid">
+      <div class="field">
+        <small>學生學號</small>
+        <strong>${safe(o.studentId)}</strong>
+      </div>
+
+      <div class="field">
+        <small>訂單時間</small>
+        <strong>${safe(o.time)}</strong>
+      </div>
+
+      <div class="field">
+        <small>訂單金額</small>
+        <strong>NT$ ${o.total.toLocaleString("zh-TW")}</strong>
+      </div>
+
+      <div class="field">
+        <small>目前進度</small>
+        <strong>${safe(o.status)}</strong>
+      </div>
+    </div>
+
+    <h3>餐點內容</h3>
+    <div class="foodbox">
+      ${o.items.map(i =>
+        `${safe(i.name)} × ${i.qty}`
+      ).join("<br>")}
+    </div>
+
+    <h3>更新訂單狀態</h3>
+
+    <div class="actions">
+      <button class="action" id="toProcessing">設為製作中</button>
+      <button class="action blue" id="toReady">設為可取餐</button>
+    </div>
+
+    <div class="note">
+      訂單狀態會更新至後端資料庫，重新整理後仍會保留。
+    </div>
+  `;
+
+  $("toProcessing").disabled = o.status === "製作中";
+  $("toReady").disabled = o.status === "可取餐";
+
+  $("toProcessing").classList.toggle(
+    "selected", o.status === "製作中"
+  );
+
+  $("toReady").classList.toggle(
+    "selected", o.status === "可取餐"
+  );
+
+  $("toProcessing").onclick = () => change(id, "製作中");
+  $("toReady").onclick = () => change(id, "可取餐");
+}
+
+// 更新後端資料庫
+async function change(id, status) {
+  const o = orders.find(x => x.id === id);
+
+  if (!o || o.status === "已取消") return;
+
+  if (!Number.isInteger(o.orderId) || o.orderId <= 0) {
+    alert("找不到有效的資料庫訂單 ID，無法更新。");
     return;
   }
 
   try {
     const response = await fetch(
-      `${API_BASE}/orders/${dbOrderId}/status`,
+      `${API_BASE}/orders/${o.orderId}/status`,
       {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: status })
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          status: status
+        })
       }
     );
 
     if (!response.ok) {
-      let detail = "";
-      try {
-        const errorData = await response.json();
-        detail = errorData.detail
-          ? (typeof errorData.detail === "string"
-              ? errorData.detail
-              : JSON.stringify(errorData.detail))
-          : "";
-      } catch (_) {
-        // 若後端回應不是 JSON，就只顯示 HTTP 狀態碼。
-      }
-      throw new Error(`更新失敗（HTTP ${response.status}）${detail ? "：" + detail : ""}`);
+      const message = await response.text();
+      throw new Error(
+        `更新失敗：HTTP ${response.status}\n${message}`
+      );
     }
 
-    // 只有後端回報成功，才更新前端狀態。
-    order.status = status;
+    // PATCH 成功後，再重新讀取資料庫
+    await syncOrders();
 
-    // 同步更新 localStorage；先用資料庫 ID 比對，再用顯示編號比對。
-    try {
-      const savedOrders = JSON.parse(localStorage.getItem("orders") || "[]");
-      const updatedOrders = savedOrders.map(savedOrder => {
-        const savedDbId = savedOrder.order_id ?? savedOrder.id ?? null;
-        const matchByDbId =
-          savedDbId !== null &&
-          savedDbId !== "" &&
-          Number.isInteger(Number(savedDbId)) &&
-          Number(savedDbId) === dbOrderId;
-        const matchByDisplayId =
-          String(savedOrder.orderNumber ?? savedOrder.display_order_number ?? "") === order.id;
+    // 重新取得更新後的訂單資料
+    const updated = orders.find(x => x.orderId === o.orderId);
 
-        return (matchByDbId || matchByDisplayId)
-          ? { ...savedOrder, order_id: dbOrderId, status: status }
-          : savedOrder;
-      });
-
-      localStorage.setItem("orders", JSON.stringify(updatedOrders));
-    } catch (storageError) {
-      console.warn("localStorage 更新失敗，但後端更新已成功：", storageError);
+    if (updated) {
+      open(updated.id);
+    } else {
+      $("detailView").style.display = "none";
+      $("listView").style.display = "block";
     }
 
-    open(order.id);
-    counts();
-    alert("訂單狀態更新成功！");
+    alert("訂單狀態已更新，並已重新讀取後端資料！");
+
   } catch (error) {
+    console.error(error);
     alert("更新訂單失敗：" + error.message);
   }
 }
 
-// 目前尚未確認後端是否提供 GET /orders，因此先不猜測 GET API 路徑。
-// 暫時保留 localStorage 載入；取得後端 GET 路徑與回傳格式後，再接上訂單列表同步。
+// 分類篩選
+$("tabs").onclick = e => {
+  const b = e.target.closest("[data-filter]");
+  if (!b) return;
 
-$("tabs").onclick=e=>{let b=e.target.closest("[data-filter]");if(!b)return;filter=b.dataset.filter;document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));render();};
-$("search").oninput=render;$("refresh").onclick=() => { orders = loadOrders();render();};
-$("back").onclick=()=>{$("detailView").style.display="none";$("listView").style.display="block";render();};
-render();
+  filter = b.dataset.filter;
+
+  document.querySelectorAll(".tab").forEach(x =>
+    x.classList.toggle("active", x === b)
+  );
+
+  render();
+};
+
+// 搜尋
+$("search").oninput = render;
+
+// 重新整理：重新讀取後端，不讀 localStorage
+$("refresh").onclick = syncOrders;
+
+// 返回列表
+$("back").onclick = () => {
+  $("detailView").style.display = "none";
+  $("listView").style.display = "block";
+  render();
+};
+
+// 網頁開啟時讀取資料庫
+syncOrders();
 </script>
 </body>
 </html>
