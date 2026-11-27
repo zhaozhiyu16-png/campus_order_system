@@ -40,26 +40,40 @@ button{border:1px solid var(--line);background:white;border-radius:10px;padding:
 </main>
 <script>
 const API_BASE = "http://127.0.0.1:8000";
-// 從 checkout 共用的 localStorage 讀取訂單
-function loadOrders() {
-  const savedOrders = JSON.parse(
-    localStorage.getItem("orders") || "[]"
-  );
+// 目前先從 localStorage 載入訂單。
+// 等後端提供 GET 訂單列表 API 後，再把資料來源改成後端回傳內容。
+function normalizeOrders(sourceOrders) {
+  return (Array.isArray(sourceOrders) ? sourceOrders : []).map(order => {
+    // order_id 是優先使用的資料庫 ID；若後端欄位叫 id，也能接收數字 ID。
+    // orderNumber（例如 DEMO025640）只作為畫面顯示編號，不當作資料庫 ID。
+    const rawDbId = order.order_id ?? order.id ?? null;
+    const parsedDbId = Number(rawDbId);
+    const dbOrderId =
+      rawDbId !== null && rawDbId !== "" &&
+      Number.isInteger(parsedDbId) && parsedDbId > 0
+        ? parsedDbId
+        : null;
 
-  return savedOrders.map(order => ({
-    id: String(
-      order.orderNumber ?? order.order_id ?? order.id ?? ""
-    ),
-    orderId: order.order_id ?? null,
-    studentId: String(order.studentId ?? ""),
-    items: (order.items || []).map(item => ({
-      name: item.name,
-      qty: item.quantity ?? item.qty ?? 0
-    })),
-    total: order.total ?? 0,
-    status: order.status || "待接單",
-    time: order.createdAt || "未提供"
-  }));
+    return {
+      id: String(order.orderNumber ?? order.display_order_number ??
+        (dbOrderId !== null ? `訂單 #${dbOrderId}` : "未提供編號")),
+      orderId: dbOrderId,
+      studentId: String(order.studentId ?? order.student_id ?? ""),
+      studentName: String(order.studentName ?? order.customer_name ?? ""),
+      items: (order.items || order.order_items || []).map(item => ({
+        name: item.name ?? item.item_name ?? "未命名餐點",
+        qty: item.quantity ?? item.qty ?? 0
+      })),
+      total: order.total ?? order.total_price ?? 0,
+      status: order.status || "待接單",
+      time: order.createdAt ?? order.created_at ?? "未提供"
+    };
+  });
+}
+
+function loadOrders() {
+  const savedOrders = JSON.parse(localStorage.getItem("orders") || "[]");
+  return normalizeOrders(savedOrders);
 }
 
 let orders = loadOrders();
@@ -102,21 +116,18 @@ $("detail").innerHTML=`<h2>訂單詳細資料</h2>
 <h3>更新訂單狀態</h3><div class="actions"><button class="action" id="toProcessing">設為製作中</button><button class="action blue" id="toReady">設為可取餐</button></div>
 <div class="note">選擇狀態後會立即更新此展示頁面的訂單資料；目前尚未寫入後端資料庫。</div>`;
 $("toProcessing").disabled=o.status==="製作中";$("toReady").disabled=o.status==="可取餐";
-$("toProcessing").onclick=()=>change(id,"製作中");$("toReady").onclick=()=>change(id,"可取餐");
+$("toProcessing").onclick=()=>change(o,"製作中");$("toReady").onclick=()=>change(o,"可取餐");
 
 $("toProcessing").classList.toggle("selected", o.status === "製作中");$("toReady").classList.toggle("selected", o.status === "可取餐");
 }
-async function change(id, status) {
-  const o = orders.find(x => x.id === id);
+async function change(order, status) {
+  // 按鈕事件直接傳入目前這筆訂單物件。
+  if (!order || order.status === "已取消") return;
 
-  // 防止修改不存在或已取消的訂單
-  if (!o || o.status === "已取消") return;
+  const dbOrderId = order.orderId;
 
-  // 取得資料庫訂單 ID
-  const dbOrderId = Number(o.orderId);
-
-  if (!dbOrderId) {
-    alert("找不到資料庫訂單 ID，無法更新後端。");
+  if (!Number.isInteger(dbOrderId) || dbOrderId <= 0) {
+    alert("這筆訂單沒有資料庫 ID，無法更新後端。請確認訂單資料是否包含 order_id 或數字 id。");
     return;
   }
 
@@ -125,84 +136,62 @@ async function change(id, status) {
       `${API_BASE}/orders/${dbOrderId}/status`,
       {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({status: status})
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: status })
       }
     );
 
     if (!response.ok) {
-      throw new Error(`更新失敗，HTTP 狀態碼：${response.status}`);
+      let detail = "";
+      try {
+        const errorData = await response.json();
+        detail = errorData.detail
+          ? (typeof errorData.detail === "string"
+              ? errorData.detail
+              : JSON.stringify(errorData.detail))
+          : "";
+      } catch (_) {
+        // 若後端回應不是 JSON，就只顯示 HTTP 狀態碼。
+      }
+      throw new Error(`更新失敗（HTTP ${response.status}）${detail ? "：" + detail : ""}`);
     }
 
-    // 後端成功後才更新前端畫面
-    o.status = status;
+    // 只有後端回報成功，才更新前端狀態。
+    order.status = status;
 
-    // 2. 同步更新 localStorage（獨立 try-catch，避免儲存失敗影響畫面更新）
+    // 同步更新 localStorage；先用資料庫 ID 比對，再用顯示編號比對。
     try {
       const savedOrders = JSON.parse(localStorage.getItem("orders") || "[]");
-      let foundInStorage = false; // 修正：補上變數宣告
+      const updatedOrders = savedOrders.map(savedOrder => {
+        const savedDbId = savedOrder.order_id ?? savedOrder.id ?? null;
+        const matchByDbId =
+          savedDbId !== null &&
+          savedDbId !== "" &&
+          Number.isInteger(Number(savedDbId)) &&
+          Number(savedDbId) === dbOrderId;
+        const matchByDisplayId =
+          String(savedOrder.orderNumber ?? savedOrder.display_order_number ?? "") === order.id;
 
-      const updatedOrders = savedOrders.map(order => {
-        const matchByDbId = order.order_id !== undefined && Number(order.order_id) === dbOrderId;
-        const matchByDisplayId = String(order.orderNumber ?? order.id ?? "") === String(id);
-
-        if (matchByDbId || matchByDisplayId) {
-          foundInStorage = true; // 找到時標記為 true
-          return { ...order, status: status };
-        }
-        return order;
+        return (matchByDbId || matchByDisplayId)
+          ? { ...savedOrder, order_id: dbOrderId, status: status }
+          : savedOrder;
       });
 
-      // 若 localStorage 原本沒有這筆訂單，補一筆最新狀態進去，確保刷新後可保留
-  if (!foundInStorage) {
-    updatedOrders.push({
-      order_id: dbOrderId,
-      orderNumber: o.id,
-      studentId: o.studentId,
-      items: o.items.map(i => ({ name: i.name, quantity: i.qty })),
-      total: o.total,
-      status: status,
-      createdAt: o.time
-    });}
-
-localStorage.setItem("orders", JSON.stringify(updatedOrders));
+      localStorage.setItem("orders", JSON.stringify(updatedOrders));
     } catch (storageError) {
-      console.warn("localStorage 更新失敗，但不影響本次操作：", storageError);
+      console.warn("localStorage 更新失敗，但後端更新已成功：", storageError);
     }
 
-    // 3. 更新前端畫面與提示
-    open(id);
+    open(order.id);
     counts();
     alert("訂單狀態更新成功！");
-
   } catch (error) {
     alert("更新訂單失敗：" + error.message);
   }
 }
 
-async function syncOrders() {
-  try {
-    // 1. 嘗試向後端 API 取得最新訂單
-    const response = await fetch("${API_BASE}/orders/${dbOrderId}/status"); // 請替換為你的 API 網址
-    if (!response.ok) throw new Error("API 請求失敗");
-
-    const serverOrders = await response.json();
-    const normalized = normalizeOrders(serverOrders);
-
-    // 2. 同步更新目前瀏覽器的 localStorage（用最新資料覆蓋）
-    localStorage.setItem("orders", JSON.stringify(normalized));
-
-    return normalized; // 回傳最新資料供畫面渲染
-  } catch (error) {
-    console.warn("無法連線至後端，改為讀取本機快取資料:", error);
-
-    // 3. 若 API 失敗，則讀取 localStorage 裡的舊資料作為備援
-    const savedOrders = JSON.parse(localStorage.getItem("orders") || "[]");
-    return savedOrders;
-  }
-}
+// 目前尚未確認後端是否提供 GET /orders，因此先不猜測 GET API 路徑。
+// 暫時保留 localStorage 載入；取得後端 GET 路徑與回傳格式後，再接上訂單列表同步。
 
 $("tabs").onclick=e=>{let b=e.target.closest("[data-filter]");if(!b)return;filter=b.dataset.filter;document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));render();};
 $("search").oninput=render;$("refresh").onclick=() => { orders = loadOrders();render();};
