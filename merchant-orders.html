@@ -130,7 +130,7 @@ function normalizeOrders(result) {
 // 從後端 shop.db 取得訂單
 async function syncOrders() {
   try {
-    const response = await fetch(`${API_BASE}/orders/merchant`);
+    const response = await fetch(`${API_BASE}/orders`);
 
     if (!response.ok) {
       throw new Error(`讀取訂單失敗：HTTP ${response.status}`);
