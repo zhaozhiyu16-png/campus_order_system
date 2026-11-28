@@ -163,3 +163,55 @@ def update_order_status(order_id: int, update_data: OrderStatusUpdate):
             "estimated_completion_time": new_eta,
         },
     }
+    
+@router.get("")
+def get_orders():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT
+            o.id AS order_id,
+            o.student_id,
+            o.customer_name,
+            o.total_price,
+            o.status,
+            o.created_at,
+            oi.item_id,
+            oi.quantity,
+            oi.price AS item_price,
+            m.name AS item_name
+        FROM orders o
+        LEFT JOIN order_items oi ON o.id = oi.order_id
+        LEFT JOIN menu m ON oi.item_id = m.id
+        ORDER BY o.created_at DESC, o.id DESC
+    """)
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    orders = {}
+
+    for row in rows:
+        order_id = row["order_id"]
+
+        if order_id not in orders:
+            orders[order_id] = {
+                "order_id": order_id,
+                "student_id": row["student_id"],
+                "customer_name": row["customer_name"],
+                "total_price": row["total_price"],
+                "status": row["status"],
+                "created_at": row["created_at"],
+                "items": []
+            }
+
+        if row["item_id"] is not None:
+            orders[order_id]["items"].append({
+                "item_id": row["item_id"],
+                "name": row["item_name"],
+                "quantity": row["quantity"],
+                "price": row["item_price"]
+            })
+
+    return list(orders.values())
